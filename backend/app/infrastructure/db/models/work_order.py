@@ -15,7 +15,9 @@ class WorkOrder(Base):
 
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    technician_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # assuming technicians are users
+    technician_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )  # assuming technicians are users
 
     client = relationship("Client", back_populates="work_orders")
     product = relationship("Product", back_populates="work_orders")

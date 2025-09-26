@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Boolean, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 from app.domain.enums import ProductStatusEnum
 from app.infrastructure.db.base import Base
-# from app.infrastructure.db.models.client import Client
 
 
 class Product(Base):
