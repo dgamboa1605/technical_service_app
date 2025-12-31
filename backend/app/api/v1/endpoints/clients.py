@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.schemas.client import ClientCreate, ClientOut
 from app.services import client_service
@@ -15,7 +15,7 @@ def create_client(
     db: Session = Depends(get_db),
     _: User = Depends(require_employee),
 ):
-    return client_service.create_client(db, client.name, client.phone)
+    return client_service.create_client(db, client.dict())
 
 
 @router.get("/", response_model=list[ClientOut])
@@ -26,3 +26,45 @@ def list_clients(
     _: User = Depends(require_employee),
 ):
     return client_service.get_clients(db, skip, limit)
+
+
+@router.get("/search", response_model=ClientOut)
+def search_client(document_number: str, db: Session = Depends(get_db)):
+    client = client_service.get_client_by_document(db, document_number)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return client
+
+
+@router.get("/{client_id}", response_model=ClientOut)
+def get_client(client_id: int, db: Session = Depends(get_db)):
+    client = client_service.get_client(db, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return client
+
+
+@router.put("/{client_id}", response_model=ClientOut)
+def update_client(
+    client_id: int,
+    client: ClientCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_employee),
+):
+    updated_client = client_service.update_client(db, client_id, client.dict())
+    if not updated_client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return updated_client
+
+
+@router.delete("/{client_id}")
+def delete_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_employee),
+):
+    success = client_service.delete_client(db, client_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return {"message": "Client deleted successfully"}
+

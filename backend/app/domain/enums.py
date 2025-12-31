@@ -7,17 +7,18 @@ class RoleEnum(str, Enum):
     customer = "customer"
 
 
-class ProductStatusEnum(str, Enum):
-    RECEIVED = "received"
-    ASSIGNED = "assigned"
-    IN_REPAIR = "in_repair"
-    REPAIRED = "repaired"
-    DELIVERED = "delivered"
-
-
 class WorkOrderStatusEnum(str, Enum):
-    RECEIVED = "received"
-    ASSIGNED = "assigned"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    DELIVERED = "delivered"
+    RECIBIDO = "recibido"
+    ASIGNADO = "asignado"
+    POR_CONFIRMAR = "por_confirmar"
+    CONFIRMADO = "confirmado"
+    EN_REPARACION = "en_reparacion"
+    COMPLETADO = "completado"
+    ENTREGADO = "entregado"
+
+
+class ServiceTypeEnum(str, Enum):
+    TALLER = "taller"
+    RECOJO = "recojo"
+    DOMICILIO = "domicilio"
+    INSTALACION = "instalacion"

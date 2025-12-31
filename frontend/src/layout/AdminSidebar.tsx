@@ -54,7 +54,7 @@ type NavItem = {
 };
 
 const AdminSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleSidebar } = useSidebar();
   const { user } = useAuth();
   const location = useLocation();
 
@@ -62,22 +62,6 @@ const AdminSidebar: React.FC = () => {
     type: "main" | "others";
     item: string;
   } | null>(null);
-
-  // Actions for quick menu items
-  const handleNewOrder = () => {
-    console.log("Nueva Orden de Trabajo");
-    // TODO: Navigate to new order form
-  };
-
-  const handleManageClients = () => {
-    console.log("Gestionar Clientes");
-    // TODO: Navigate to clients management
-  };
-
-  const handleManageProducts = () => {
-    console.log("Inventario de Productos");
-    // TODO: Navigate to products inventory
-  };
 
   const navItems: NavItem[] = [
     {
@@ -89,39 +73,35 @@ const AdminSidebar: React.FC = () => {
       icon: <ClipboardIcon />,
       name: "Órdenes de Trabajo",
       subItems: [
+        { name: "Nueva Orden", path: "/admin/orders/new" },
         { name: "Todas las Órdenes", path: "/admin/orders" },
-        { name: "Nueva Orden", path: "/admin/orders/new", action: handleNewOrder },
-        { name: "Pendientes", path: "/admin/orders/pending" },
-        { name: "En Progreso", path: "/admin/orders/in-progress" },
-        { name: "Completadas", path: "/admin/orders/completed" },
+        { name: "Pendientes", path: "/admin/orders?status=recibido,asignado,por_confirmar" },
+        { name: "En Progreso", path: "/admin/orders?status=confirmado,en_reparacion" },
+        { name: "Completadas", path: "/admin/orders?status=completado,entregado" },
       ],
     },
     {
       icon: <UsersIcon />,
       name: "Clientes",
       subItems: [
-        { name: "Todos los Clientes", path: "/admin/clients" },
         { name: "Nuevo Cliente", path: "/admin/clients/new" },
-        { name: "Gestionar", path: "/admin/clients/manage", action: handleManageClients },
+        { name: "Todos los Clientes", path: "/admin/clients" },
       ],
     },
     {
       icon: <BoxIcon />,
       name: "Inventario",
       subItems: [
-        { name: "Productos", path: "/admin/products" },
         { name: "Nuevo Producto", path: "/admin/products/new" },
-        { name: "Gestionar", path: "/admin/products/manage", action: handleManageProducts },
-        { name: "Categorías", path: "/admin/categories" },
+        { name: "Todos los Productos", path: "/admin/products" },
       ],
     },
     {
       icon: <UserIcon />,
       name: "Usuarios",
       subItems: [
-        { name: "Empleados", path: "/admin/users" },
         { name: "Nuevo Usuario", path: "/admin/users/new" },
-        { name: "Roles y Permisos", path: "/admin/roles" },
+        { name: "Todos los Usuarios", path: "/admin/users" },
       ],
     },
   ];
@@ -150,7 +130,8 @@ const AdminSidebar: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+      const isMobile = window.innerWidth < 768;
+      if (!isMobile && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setOpenSubmenu(null);
       }
     };
@@ -163,51 +144,55 @@ const AdminSidebar: React.FC = () => {
 
   if (!user) return null; // Don't show admin sidebar if not logged in
 
-  const shouldShowSidebar = isExpanded || isHovered || isMobileOpen;
+  const isMobile = window.innerWidth < 768;
+  const shouldShowSidebar = isMobile ? isMobileOpen : (isExpanded || isHovered);
 
   return (
     <>
       {/* Mobile Overlay */}
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 z-10 bg-black bg-opacity-50 lg:hidden"
-          onClick={() => setOpenSubmenu(null)}
-        />
-      )}
+      {/* Overlay eliminado para permitir interacción con el sidebar en móvil */}
 
       {/* Sidebar */}
       <div
         ref={sidebarRef}
         className={`
-          fixed left-0 top-0 mt-16 lg:mt-0 z-20 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out
+          fixed left-0 top-0 mt-16 lg:mt-0 z-30 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out print:hidden
           ${shouldShowSidebar ? 'w-64' : 'w-16'}
-          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isMobile ? (isMobileOpen ? 'translate-x-0' : '-translate-x-full') : ''}
         `}
         onMouseEnter={() => !isExpanded && setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">TA</span>
-              </div>
-              {shouldShowSidebar && (
-                <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-white">
-                    Panel Admin
-                  </h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.username}
-                  </p>
-                </div>
-              )}
-            </div>
+          <div className="flex items-center justify-center px-4 py-4 cursor-pointer" onClick={toggleSidebar} title="Mostrar/Ocultar menú">
+            {shouldShowSidebar ? (
+              <>
+                <img
+                  className="h-10 w-auto object-contain p-0 m-0 dark:hidden"
+                  src="/images/logo/techvel-logo.png"
+                  alt="Techvel Logo"
+                  style={{ background: 'none', boxShadow: 'none' }}
+                />
+                <img
+                  className="hidden h-10 w-auto object-contain p-0 m-0 dark:block"
+                  src="/images/logo/techvel-logo-dark.png"
+                  alt="Techvel Logo"
+                  style={{ background: 'none', boxShadow: 'none' }}
+                />
+              </>
+            ) : (
+              <img
+                className="h-10 w-10 object-contain p-0 m-0"
+                src="/images/logo/techvel-icon.png"
+                alt="Techvel Icon"
+                style={{ background: 'none', boxShadow: 'none' }}
+              />
+            )}
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-4">
+          <div className="flex-1 overflow-y-auto pt-0 pb-4">
             <nav className="px-3">
               {/* Main Navigation */}
               <div className="space-y-1">

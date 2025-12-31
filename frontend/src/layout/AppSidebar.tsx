@@ -216,25 +216,25 @@ const AppSidebar: React.FC = () => {
             <>
               <img
                 className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
+                src="/images/logo/techvel-logo.png"
+                alt="Techvel Logo"
+                width={180}
+                height={50}
               />
               <img
                 className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
+                src="/images/logo/techvel-logo-dark.png"
+                alt="Techvel Logo"
+                width={180}
+                height={50}
               />
             </>
           ) : (
             <img
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
+              src="/images/logo/techvel-icon.png"
+              alt="Techvel Icon"
+              width={40}
+              height={40}
             />
           )}
         </Link>

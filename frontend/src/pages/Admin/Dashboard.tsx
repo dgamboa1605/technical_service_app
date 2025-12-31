@@ -1,7 +1,104 @@
 import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { workOrdersApi, type WorkOrderDetail } from "../../services/api";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [workOrders, setWorkOrders] = useState<WorkOrderDetail[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const navigate = useNavigate();
+
+  const stats = useMemo(() => {
+    const byStatus = workOrders.reduce<Record<string, number>>((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const pendientes = (byStatus.recibido || 0) + (byStatus.asignado || 0) + (byStatus.por_confirmar || 0);
+    const enProgreso = (byStatus.confirmado || 0) + (byStatus.en_reparacion || 0);
+    const completadas = byStatus.completado || 0;
+    const entregadas = byStatus.entregado || 0;
+
+    return { pendientes, enProgreso, completadas, entregadas, total: workOrders.length };
+  }, [workOrders]);
+
+  // Cargar órdenes al montar el componente
+  useEffect(() => {
+    const loadWorkOrders = async () => {
+      try {
+        const orders = await workOrdersApi.getAllWithDetails(0, 100);
+        setWorkOrders(orders);
+      } catch (error) {
+        console.error('Error loading work orders:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadWorkOrders();
+  }, []);
+
+  // Función para buscar orden específica
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+
+    const orderId = parseInt(searchTerm, 10);
+    if (isNaN(orderId)) {
+      return;
+    }
+
+    try {
+      const order = await workOrdersApi.getDetail(orderId);
+      setWorkOrders([order]); // Mostrar solo la orden encontrada
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Error searching work order:', error);
+    }
+  };
+
+  // Función para resetear la búsqueda
+  const resetSearch = async () => {
+    setSearchTerm("");
+    setIsLoading(true);
+    try {
+      const orders = await workOrdersApi.getAllWithDetails(0, 100);
+      setWorkOrders(orders);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Error loading work orders:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Mapear estados al español
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      recibido: { label: "Recibido", class: "bg-slate-100 text-slate-800" },
+      asignado: { label: "Asignado", class: "bg-cyan-100 text-cyan-800" },
+      por_confirmar: { label: "Por confirmar", class: "bg-gray-100 text-gray-800" },
+      confirmado: { label: "Confirmado", class: "bg-blue-100 text-blue-800" },
+      en_reparacion: { label: "En reparación", class: "bg-amber-100 text-amber-800" },
+      completado: { label: "Completado", class: "bg-green-100 text-green-800" },
+      entregado: { label: "Entregado", class: "bg-slate-200 text-slate-800" },
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || {
+      label: status,
+      class: "bg-gray-100 text-gray-800",
+    };
+
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.class}`}>
+        {config.label}
+      </span>
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -20,12 +117,8 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Órdenes Pendientes
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                24
-              </p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Órdenes pendientes</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pendientes}</p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
               <svg className="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,15 +131,11 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                En Progreso
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                12
-              </p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">En progreso</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.enProgreso}</p>
             </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
-              <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-amber-100 dark:bg-amber-900 rounded-full">
+              <svg className="w-6 h-6 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -56,12 +145,8 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Completadas
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                89
-              </p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completadas</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completadas}</p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
               <svg className="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,16 +159,12 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Clientes
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                125
-              </p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Entregadas</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.entregadas}</p>
             </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
-              <svg className="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H9a2 2 0 01-2-2z" />
+            <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full">
+              <svg className="w-6 h-6 text-slate-700 dark:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
           </div>
@@ -96,21 +177,35 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Buscar Orden de Trabajo
           </h2>
-          <div className="flex gap-4">
+          <form onSubmit={handleSearch} className="flex gap-4">
             <div className="flex-1">
               <input
                 type="text"
-                placeholder="Número de orden (ej: ORD-001)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Número de orden (ej: 1, 2, 3...)"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2">
+            <button 
+              type="submit"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               Buscar
             </button>
-          </div>
+            {searchTerm && (
+              <button 
+                type="button"
+                onClick={resetSearch}
+                className="px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                Limpiar
+              </button>
+            )}
+          </form>
         </div>
       </div>
 
@@ -121,12 +216,15 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Gestión de Órdenes de Trabajo
             </h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">
+            <Link 
+              to="/admin/orders/new"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               Nueva Orden
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -155,103 +253,56 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {/* Sample data - replace with real data */}
-              <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                  ORD-001
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  Juan Pérez
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  Laptop HP Pavilion
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                    En Progreso
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  2024-09-20
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex gap-2">
-                    <button className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                      Ver
-                    </button>
-                    <button className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">
-                      Editar
-                    </button>
-                    <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
-                      Eliminar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                  ORD-002
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  María García
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  iPhone 12
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                    Pendiente
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  2024-09-21
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex gap-2">
-                    <button className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                      Ver
-                    </button>
-                    <button className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">
-                      Editar
-                    </button>
-                    <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
-                      Eliminar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                  ORD-003
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  Carlos López
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  Samsung Galaxy Tab
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    Completada
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  2024-09-18
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex gap-2">
-                    <button className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                      Ver
-                    </button>
-                    <button className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">
-                      Editar
-                    </button>
-                    <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
-                      Eliminar
-                    </button>
-                  </div>
-                </td>
-              </tr>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    Cargando órdenes...
+                  </td>
+                </tr>
+              ) : workOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No se encontraron órdenes de trabajo.
+                  </td>
+                </tr>
+              ) : (
+                (() => {
+                  // Calcular índices para la paginación
+                  const indexOfLastItem = currentPage * itemsPerPage;
+                  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                  const currentItems = workOrders.slice(indexOfFirstItem, indexOfLastItem);
+                  
+                  return currentItems.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        #{order.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {order.client?.name || 'Sin cliente'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {order.product ? `${order.product.item_type} ${order.product.brand}` : 'Sin producto'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(order.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {new Date(order.received_date).toLocaleDateString('es-ES')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => navigate(`/admin/orders/${order.id}`)}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                          >
+                            Ver
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ));
+                })()
+              )}
             </tbody>
           </table>
         </div>
@@ -260,23 +311,61 @@ export default function Dashboard() {
         <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              Mostrando <span className="font-medium">1</span> a <span className="font-medium">3</span> de{" "}
-              <span className="font-medium">24</span> resultados
+              Mostrando{" "}
+              <span className="font-medium">
+                {workOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
+              </span>{" "}
+              a{" "}
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, workOrders.length)}
+              </span>{" "}
+              de <span className="font-medium">{workOrders.length}</span> resultados
             </div>
             <div className="flex gap-1">
-              <button className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Anterior
               </button>
-              <button className="px-3 py-2 text-sm bg-blue-600 text-white border border-blue-600 rounded-md">
-                1
-              </button>
-              <button className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
-                2
-              </button>
-              <button className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
-                3
-              </button>
-              <button className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+              {(() => {
+                const totalPages = Math.ceil(workOrders.length / itemsPerPage);
+                const pages = [];
+                for (let i = 1; i <= totalPages; i++) {
+                  if (
+                    i === 1 ||
+                    i === totalPages ||
+                    (i >= currentPage - 1 && i <= currentPage + 1)
+                  ) {
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`px-3 py-2 text-sm border rounded-md ${
+                          currentPage === i
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "text-gray-500 bg-white border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    pages.push(
+                      <span key={i} className="px-2 text-gray-500">
+                        ...
+                      </span>
+                    );
+                  }
+                }
+                return pages;
+              })()}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(workOrders.length / itemsPerPage)))}
+                disabled={currentPage === Math.ceil(workOrders.length / itemsPerPage)}
+                className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Siguiente
               </button>
             </div>

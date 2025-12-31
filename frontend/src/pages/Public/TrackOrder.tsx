@@ -1,46 +1,71 @@
 import { useState } from "react";
+import { workOrdersApi, type WorkOrderDetail } from "../../services/api";
 
-// Tipo para los datos de la orden
-interface OrderData {
-  id: string;
-  status: string;
-  productName: string;
-  issueDescription: string;
-  dateCreated: string;
-  estimatedCompletion: string;
-}
+const STATUS_LABEL: Record<string, string> = {
+  recibido: "Recibido",
+  asignado: "Asignado",
+  por_confirmar: "Por confirmar",
+  confirmado: "Confirmado",
+  en_reparacion: "En reparación",
+  completado: "Completado",
+  entregado: "Entregado",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  recibido: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+  asignado: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  por_confirmar: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+  confirmado: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  en_reparacion: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+  completado: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  entregado: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+};
 
 export default function TrackOrder() {
   const [orderNumber, setOrderNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [orderData, setOrderData] = useState<OrderData | null>(null);
+  const [orderData, setOrderData] = useState<WorkOrderDetail | null>(null);
   const [error, setError] = useState("");
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!orderData || orderData.status !== 'por_confirmar') return;
+    
+    setIsConfirming(true);
+    setError("");
+    
+    try {
+      await workOrdersApi.confirmOrder(orderData.id);
+      // Recargar la orden
+      const updated = await workOrdersApi.getDetail(orderData.id);
+      setOrderData(updated);
+    } catch (err) {
+      console.error('Error confirming order:', err);
+      setError("No se pudo confirmar la orden. Intente nuevamente.");
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderNumber.trim()) return;
 
+    const orderId = parseInt(orderNumber, 10);
+    if (isNaN(orderId)) {
+      setError("Por favor ingrese un número de orden válido.");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     
     try {
-      // Aquí irá la llamada al API para buscar la orden
-      // const response = await searchOrder(orderNumber);
-      // setOrderData(response);
-      
-      // Por ahora, simulamos una búsqueda
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Datos de ejemplo
-      setOrderData({
-        id: orderNumber,
-        status: "En Progreso",
-        productName: "Laptop HP Pavilion",
-        issueDescription: "No enciende",
-        dateCreated: "2024-09-20",
-        estimatedCompletion: "2024-09-27"
-      });
+      // Buscar la orden por ID con detalle completo
+      const workOrder = await workOrdersApi.getDetail(orderId);
+      setOrderData(workOrder);
     } catch (err) {
+      console.error('Error searching work order:', err);
       setError("No se encontró una orden con ese número. Verifique e intente nuevamente.");
       setOrderData(null);
     } finally {
@@ -103,41 +128,139 @@ export default function TrackOrder() {
 
       {/* Resultados de la búsqueda */}
       {orderData && (
-        <div className="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-            Detalles de su Orden #{orderData.id}
-          </h2>
-          
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <h3 className="mb-2 font-medium text-gray-700 dark:text-gray-300">Estado</h3>
-              <span className="px-3 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900 dark:text-blue-300">
-                {orderData.status}
+        <div className="space-y-6">
+          {/* Encabezado */}
+          <div className="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Orden #{orderData.id}
+              </h2>
+              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${STATUS_BADGE[orderData.status]}`}>
+                {STATUS_LABEL[orderData.status]}
               </span>
             </div>
             
-            <div>
-              <h3 className="mb-2 font-medium text-gray-700 dark:text-gray-300">Producto</h3>
-              <p className="text-gray-900 dark:text-white">{orderData.productName}</p>
-            </div>
-            
-            <div>
-              <h3 className="mb-2 font-medium text-gray-700 dark:text-gray-300">Problema Reportado</h3>
-              <p className="text-gray-900 dark:text-white">{orderData.issueDescription}</p>
-            </div>
-            
-            <div>
-              <h3 className="mb-2 font-medium text-gray-700 dark:text-gray-300">Fecha de Ingreso</h3>
-              <p className="text-gray-900 dark:text-white">{orderData.dateCreated}</p>
-            </div>
-            
-            <div className="md:col-span-2">
-              <h3 className="mb-2 font-medium text-gray-700 dark:text-gray-300">Fecha Estimada de Entrega</h3>
-              <p className="text-lg font-medium text-green-600 dark:text-green-400">{orderData.estimatedCompletion}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h3 className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">Producto</h3>
+                <p className="text-gray-900 dark:text-white">
+                  {orderData.product ? `${orderData.product.item_type} ${orderData.product.brand} ${orderData.product.model}` : '-'}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Serie: {orderData.product?.serial_number || '-'}</p>
+              </div>
+              
+              <div>
+                <h3 className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">Cliente</h3>
+                <p className="text-gray-900 dark:text-white">{orderData.client?.name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Tel: {orderData.client?.phone}</p>
+              </div>
+              
+              <div>
+                <h3 className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Recepción</h3>
+                <p className="text-gray-900 dark:text-white">
+                  {orderData.received_date ? new Date(orderData.received_date).toLocaleDateString('es-ES') : '-'}
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">Técnico</h3>
+                <p className="text-gray-900 dark:text-white">
+                  {orderData.technician?.username || 'No asignado'}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg dark:bg-gray-700">
+          {/* Informe Técnico y Repuestos */}
+          {(orderData.technical_report || orderData.parts.length > 0 || (orderData.labor_cost && orderData.labor_cost > 0)) && (
+            <div className="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
+              {orderData.technical_report && (
+                <div className="mb-6">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Informe Técnico</h3>
+                  <div className="p-4 bg-gray-50 rounded dark:bg-gray-700">
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                      {orderData.technical_report}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {(orderData.labor_cost && orderData.labor_cost > 0) || orderData.parts.length > 0 ? (
+                <div>
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Costos del Servicio</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                          <th className="px-4 py-2">Descripción</th>
+                          <th className="px-4 py-2 text-right">Cantidad</th>
+                          <th className="px-4 py-2 text-right">Precio Unit.</th>
+                          <th className="px-4 py-2 text-right">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderData.labor_cost && orderData.labor_cost > 0 && (
+                          <tr className="border-b dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
+                            <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">Servicio de Reparación / Mano de Obra</td>
+                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">1</td>
+                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">${orderData.labor_cost.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">
+                              ${orderData.labor_cost.toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
+                        {orderData.parts.map((part) => (
+                          <tr key={part.id} className="border-b dark:border-gray-700">
+                            <td className="px-4 py-2 text-gray-900 dark:text-white">{part.description}</td>
+                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">{part.qty}</td>
+                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">${part.unit_price.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">
+                              ${(part.qty * part.unit_price).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="font-bold border-t-2 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
+                          <td colSpan={3} className="px-4 py-3 text-right text-gray-900 dark:text-white text-base">TOTAL:</td>
+                          <td className="px-4 py-3 text-right text-gray-900 dark:text-white text-lg">
+                            ${(
+                              (orderData.labor_cost || 0) + 
+                              orderData.parts.reduce((sum, p) => sum + (p.qty * p.unit_price), 0)
+                            ).toFixed(2)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Botón de confirmación */}
+          {orderData.status === 'por_confirmar' && (
+            <div className="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="text-center">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    ¿Desea confirmar esta orden?
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Al confirmar, autorizas al técnico a proceder con la reparación según el informe y cotización presentados.
+                  </p>
+                </div>
+                <button
+                  onClick={handleConfirm}
+                  disabled={isConfirming}
+                  className="px-8 py-3 font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isConfirming ? 'Confirmando...' : 'Confirmar Orden'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Información Adicional */}
+          <div className="p-4 bg-gray-50 rounded-lg dark:bg-gray-700">
             <h4 className="mb-2 font-medium text-gray-700 dark:text-gray-300">Información Adicional</h4>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Si tiene preguntas sobre su orden o necesita más información, por favor comuníquese con nuestro equipo de atención al cliente.
