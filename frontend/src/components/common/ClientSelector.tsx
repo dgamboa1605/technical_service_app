@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { clientsApi, type Client } from "../../services/api";
+import { useState, useMemo } from "react";
+import type { Client } from "../../domain/entities/Client";
+import { GetAllClientsUseCase } from "../../application";
+import { clientRepository } from "../../infrastructure/repositories/ClientRepository";
 
 interface ClientSelectorProps {
   onClientSelected: (client: Client | null) => void;
@@ -13,6 +15,8 @@ export default function ClientSelector({ onClientSelected, onNewClient }: Client
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showResults, setShowResults] = useState(false);
 
+  const getAllClientsUseCase = useMemo(() => new GetAllClientsUseCase(clientRepository), []);
+
   const handleSearch = async (term: string) => {
     setSearchTerm(term);
     
@@ -24,28 +28,29 @@ export default function ClientSelector({ onClientSelected, onNewClient }: Client
 
     setIsSearching(true);
     try {
-      // Buscar por documento
-      const client = await clientsApi.searchByDocument(term.trim());
-      setSearchResults([client]);
-      setShowResults(true);
-    } catch (error) {
-      // Si no encuentra por documento, buscar en la lista general
-      try {
-        const allClients = await clientsApi.getAll();
-        const filtered = allClients.filter(
-          (c) =>
-            c.name.toLowerCase().includes(term.toLowerCase()) ||
-            c.phone.includes(term) ||
-            (c.email && c.email.toLowerCase().includes(term.toLowerCase())) ||
-            (c.document_number && c.document_number.includes(term))
-        );
-        setSearchResults(filtered);
-        setShowResults(filtered.length > 0);
-      } catch (err) {
-        console.error("Error searching clients:", err);
-        setSearchResults([]);
-        setShowResults(false);
+      // Primero intentar buscar por documento
+      const clientByDoc = await clientRepository.searchByDocument(term.trim());
+      if (clientByDoc) {
+        setSearchResults([clientByDoc]);
+        setShowResults(true);
+        return;
       }
+      
+      // Si no encuentra por documento, buscar en la lista general
+      const allClients = await getAllClientsUseCase.execute();
+      const filtered = allClients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(term.toLowerCase()) ||
+          c.phone.includes(term) ||
+          (c.email && c.email.toLowerCase().includes(term.toLowerCase())) ||
+          (c.documentNumber && c.documentNumber.includes(term))
+      );
+      setSearchResults(filtered);
+      setShowResults(filtered.length > 0);
+    } catch (err) {
+      console.error("Error searching clients:", err);
+      setSearchResults([]);
+      setShowResults(false);
     } finally {
       setIsSearching(false);
     }
@@ -117,7 +122,7 @@ export default function ClientSelector({ onClientSelected, onNewClient }: Client
                 >
                   <div className="font-medium text-gray-900 dark:text-white">{client.name}</div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {client.document_number && <span className="mr-3">Doc: {client.document_number}</span>}
+                    {client.documentNumber && <span className="mr-3">Doc: {client.documentNumber}</span>}
                     <span>Tel: {client.phone}</span>
                   </div>
                 </button>
@@ -146,7 +151,7 @@ export default function ClientSelector({ onClientSelected, onNewClient }: Client
             <div className="flex-1">
               <div className="font-semibold text-gray-900 dark:text-white">{selectedClient.name}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mt-1">
-                {selectedClient.document_number && <div>Doc: {selectedClient.document_number}</div>}
+                {selectedClient.documentNumber && <div>Doc: {selectedClient.documentNumber}</div>}
                 <div>Tel: {selectedClient.phone}</div>
                 {selectedClient.email && <div>Email: {selectedClient.email}</div>}
                 {selectedClient.address && <div>Dir: {selectedClient.address}</div>}

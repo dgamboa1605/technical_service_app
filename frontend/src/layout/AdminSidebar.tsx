@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useLocation } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { useAuthorization } from "../presentation/hooks/useAuthorization";
 
 // Icons for admin sidebar
 const GridIcon = () => (
@@ -56,6 +57,7 @@ type NavItem = {
 const AdminSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleSidebar } = useSidebar();
   const { user } = useAuth();
+  const { isAdmin } = useAuthorization();
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
@@ -63,48 +65,63 @@ const AdminSidebar: React.FC = () => {
     item: string;
   } | null>(null);
 
-  const navItems: NavItem[] = [
-    {
-      icon: <GridIcon />,
-      name: "Dashboard",
-      path: "/admin",
-    },
-    {
-      icon: <ClipboardIcon />,
-      name: "Órdenes de Trabajo",
-      subItems: [
-        { name: "Nueva Orden", path: "/admin/orders/new" },
-        { name: "Todas las Órdenes", path: "/admin/orders" },
-        { name: "Pendientes", path: "/admin/orders?status=recibido,asignado,por_confirmar" },
-        { name: "En Progreso", path: "/admin/orders?status=confirmado,en_reparacion" },
-        { name: "Completadas", path: "/admin/orders?status=completado,entregado" },
-      ],
-    },
-    {
-      icon: <UsersIcon />,
-      name: "Clientes",
-      subItems: [
-        { name: "Nuevo Cliente", path: "/admin/clients/new" },
-        { name: "Todos los Clientes", path: "/admin/clients" },
-      ],
-    },
-    {
-      icon: <BoxIcon />,
-      name: "Inventario",
-      subItems: [
-        { name: "Nuevo Producto", path: "/admin/products/new" },
-        { name: "Todos los Productos", path: "/admin/products" },
-      ],
-    },
-    {
-      icon: <UserIcon />,
-      name: "Usuarios",
-      subItems: [
-        { name: "Nuevo Usuario", path: "/admin/users/new" },
-        { name: "Todos los Usuarios", path: "/admin/users" },
-      ],
-    },
-  ];
+  const navItems: NavItem[] = useMemo(() => {
+    const items: NavItem[] = [
+      {
+        icon: <GridIcon />,
+        name: "Dashboard",
+        path: "/admin",
+      },
+      {
+        icon: <UserIcon />,
+        name: "Mi Perfil",
+        path: "/admin/profile",
+      },
+      {
+        icon: <ClipboardIcon />,
+        name: "Órdenes de Trabajo",
+        subItems: [
+          ...(isAdmin ? [{ name: "Nueva Orden", path: "/admin/orders/new" }] : []),
+          { name: "Todas las Órdenes", path: "/admin/orders" },
+          { name: "Pendientes", path: "/admin/orders?status=recibido,asignado,por_confirmar" },
+          { name: "En Progreso", path: "/admin/orders?status=confirmado,en_reparacion" },
+          { name: "Completadas", path: "/admin/orders?status=completado,entregado" },
+        ],
+      },
+    ];
+
+    // Solo agregar estas secciones si es admin
+    if (isAdmin) {
+      items.push(
+        {
+          icon: <UsersIcon />,
+          name: "Clientes",
+          subItems: [
+            { name: "Nuevo Cliente", path: "/admin/clients/new" },
+            { name: "Todos los Clientes", path: "/admin/clients" },
+          ],
+        },
+        {
+          icon: <BoxIcon />,
+          name: "Inventario",
+          subItems: [
+            { name: "Nuevo Producto", path: "/admin/products/new" },
+            { name: "Todos los Productos", path: "/admin/products" },
+          ],
+        },
+        {
+          icon: <UserIcon />,
+          name: "Usuarios",
+          subItems: [
+            { name: "Nuevo Usuario", path: "/admin/users/new" },
+            { name: "Todos los Usuarios", path: "/admin/users" },
+          ],
+        }
+      );
+    }
+
+    return items;
+  }, [isAdmin]);
 
   const sidebarRef = useRef<HTMLDivElement>(null);
 

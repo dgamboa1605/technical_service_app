@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies.roles import require_employee
+from app.api.dependencies.roles import require_employee, require_admin, is_admin
+from app.api.dependencies.auth import get_current_user
 from app.api.v1.endpoints.utils import get_db
 from app.infrastructure.db.models.user import User
 from app.schemas.work_order import (
@@ -26,8 +27,9 @@ router = APIRouter()
 def create_work_order(
     order: WorkOrderCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_employee),
+    current_user: User = Depends(require_admin),
 ):
+    """Solo administradores pueden crear órdenes de trabajo"""
     return work_order_service.create_work_order(db, order.dict(), user_id=current_user.id)
 
 
@@ -37,8 +39,20 @@ def get_next_work_order_number(db: Session = Depends(get_db)):
 
 
 @router.get("/all/details", response_model=list[WorkOrderDetail])
-def list_work_orders_with_details(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return work_order_service.get_work_orders_with_details(db, skip, limit)
+def list_work_orders_with_details(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Lista órdenes con detalles. Employees solo ven órdenes asignadas o sin técnico"""
+    if is_admin(current_user):
+        return work_order_service.get_work_orders_with_details(db, skip, limit)
+    else:
+        # Employee solo ve órdenes asignadas a él o sin técnico asignado
+        return work_order_service.get_work_orders_with_details_for_employee(
+            db, current_user.id, skip, limit
+        )
 
 
 @router.get("/", response_model=list[WorkOrderOut])
@@ -55,10 +69,28 @@ def get_work_order(work_order_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{work_order_id}/detail", response_model=WorkOrderDetail)
-def get_work_order_detail(work_order_id: int, db: Session = Depends(get_db)):
+def get_work_order_detail(
+    work_order_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Obtiene detalle de orden. Para employees, oculta información del cliente"""
     work_order = work_order_service.get_work_order_detail(db, work_order_id)
     if not work_order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
+    
+    # Verificar acceso: employee solo puede ver si es el técnico asignado o no hay técnico
+    if not is_admin(current_user):
+        if work_order.technician_id and work_order.technician_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view orders assigned to you"
+            )
+    
+    # Si es employee, ocultar información del cliente
+    if not is_admin(current_user):
+        work_order.client = None
+    
     return work_order
 
 
@@ -69,6 +101,19 @@ def update_work_order_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_employee),
 ):
+    """Actualizar estado de orden. Employee solo puede si es el técnico asignado o la orden no tiene técnico"""
+    work_order = work_order_service.get_work_order(db, work_order_id)
+    if not work_order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
+    
+    # Verificar que employee solo puede cambiar estado si es el técnico asignado o no hay técnico
+    if not is_admin(current_user):
+        if work_order.technician_id and work_order.technician_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update status for orders assigned to you"
+            )
+    
     try:
         work_order = work_order_service.update_work_order_status(
             db, work_order_id, payload.status, user_id=current_user.id, note=payload.note
@@ -76,8 +121,6 @@ def update_work_order_status(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
-    if not work_order:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
     return work_order
 
 
@@ -88,12 +131,23 @@ def update_work_order_technical_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_employee),
 ):
-    work_order = work_order_service.update_technical_report(
-        db, work_order_id, payload.technical_report
-    )
+    """Actualizar informe técnico. Employee solo puede si es el técnico asignado"""
+    work_order = work_order_service.get_work_order(db, work_order_id)
     if not work_order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
-    return work_order
+    
+    # Verificar que employee solo puede editar si es el técnico asignado
+    if not is_admin(current_user):
+        if not work_order.technician_id or work_order.technician_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update technical report for orders assigned to you"
+            )
+    
+    updated_work_order = work_order_service.update_technical_report(
+        db, work_order_id, payload.technical_report
+    )
+    return updated_work_order
 
 
 @router.patch("/{work_order_id}/technician", response_model=WorkOrderOut)
@@ -101,10 +155,11 @@ def assign_technician_to_work_order(
     work_order_id: int,
     payload: WorkOrderTechnicianUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_employee),
+    current_user: User = Depends(require_admin),
 ):
     """
     Asigna un técnico a una orden de trabajo.
+    Solo administradores pueden asignar técnicos.
     Si la orden está en estado RECIBIDO, automáticamente la cambia a ASIGNADO.
     """
     work_order = work_order_service.assign_technician(
@@ -122,11 +177,21 @@ def update_work_order_labor_cost(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_employee),
 ):
-    """Actualizar el costo de mano de obra/servicio"""
-    work_order = work_order_service.update_labor_cost(db, work_order_id, payload.labor_cost)
+    """Actualizar el costo de mano de obra/servicio. Employee solo puede si es el técnico asignado"""
+    work_order = work_order_service.get_work_order(db, work_order_id)
     if not work_order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
-    return work_order
+    
+    # Verificar que employee solo puede editar si es el técnico asignado
+    if not is_admin(current_user):
+        if not work_order.technician_id or work_order.technician_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update labor cost for orders assigned to you"
+            )
+    
+    updated_work_order = work_order_service.update_labor_cost(db, work_order_id, payload.labor_cost)
+    return updated_work_order
 
 
 @router.post("/{work_order_id}/history", response_model=WorkOrderHistoryOut)
@@ -134,8 +199,9 @@ def add_history_entry(
     work_order_id: int,
     payload: WorkOrderHistoryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_employee),
+    current_user: User = Depends(require_admin),
 ):
+    """Solo administradores pueden agregar entradas al historial/bitácora"""
     entry = work_order_service.add_history_entry(
         db, work_order_id, payload.dict(), user_id=current_user.id
     )
@@ -151,11 +217,22 @@ def add_work_order_part(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_employee),
 ):
+    """Agregar repuesto. Employee solo puede si es el técnico asignado"""
+    work_order = work_order_service.get_work_order(db, work_order_id)
+    if not work_order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
+    
+    # Verificar que employee solo puede agregar si es el técnico asignado
+    if not is_admin(current_user):
+        if not work_order.technician_id or work_order.technician_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only add parts for orders assigned to you"
+            )
+    
     part = work_order_service.add_work_order_part(
         db, work_order_id, payload.dict(), user_id=current_user.id
     )
-    if not part:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
     return part
 
 

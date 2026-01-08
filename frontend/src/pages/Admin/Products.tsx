@@ -1,49 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { productsApi, type Product } from "../../services/api";
+import { useProducts } from "../../presentation/hooks/useProducts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function Products() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { products, isLoading, loadProducts } = useProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadProducts = async () => {
-    setIsLoading(true);
-    try {
-      const data = await productsApi.getAll();
-      setProducts(data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filteredProducts = products.filter(product => {
-    if (!searchTerm.trim()) return true;
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return products;
     const term = searchTerm.toLowerCase();
-    return (
-      product.item_type?.toLowerCase().includes(term) ||
+    return products.filter(product => 
+      product.itemType?.toLowerCase().includes(term) ||
       product.brand?.toLowerCase().includes(term) ||
       product.model?.toLowerCase().includes(term) ||
-      product.serial_number?.toLowerCase().includes(term)
+      product.serialNumber?.toLowerCase().includes(term)
     );
-  });
+  }, [products, searchTerm]);
 
   return (
     <>
       <PageMeta title="Gestión de Productos" description="Administra el inventario de productos" />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <PageBreadCrumb pageTitle="Productos" />
-          <div className="mb-4 mt-0">
+      <div className="w-full">
+        <PageBreadCrumb pageTitle="Productos" />
+        <div className="mb-4 mt-0">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Gestión de Productos
             </h1>
@@ -120,7 +107,7 @@ export default function Products() {
                       <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {product.item_type}
+                            {product.itemType}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -135,7 +122,7 @@ export default function Products() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {product.serial_number || "-"}
+                            {product.serialNumber || "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -153,7 +140,6 @@ export default function Products() {
               </table>
             </div>
           </div>
-        </div>
       </div>
     </>
   );

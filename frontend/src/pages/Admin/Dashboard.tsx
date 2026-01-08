@@ -1,46 +1,29 @@
 import { useAuth } from "../../context/AuthContext";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { workOrdersApi, type WorkOrderDetail } from "../../services/api";
+import { useWorkOrders } from "../../presentation/hooks/useWorkOrders";
+import { getStatusLabel } from "../../domain/value-objects/WorkOrderStatus";
+import type { WorkOrder } from "../../domain/entities/WorkOrder";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [workOrders, setWorkOrders] = useState<WorkOrderDetail[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { workOrders, isLoading, stats, getWorkOrderById, loadWorkOrders } = useWorkOrders();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>(workOrders);
   const navigate = useNavigate();
-
-  const stats = useMemo(() => {
-    const byStatus = workOrders.reduce<Record<string, number>>((acc, order) => {
-      acc[order.status] = (acc[order.status] || 0) + 1;
-      return acc;
-    }, {});
-
-    const pendientes = (byStatus.recibido || 0) + (byStatus.asignado || 0) + (byStatus.por_confirmar || 0);
-    const enProgreso = (byStatus.confirmado || 0) + (byStatus.en_reparacion || 0);
-    const completadas = byStatus.completado || 0;
-    const entregadas = byStatus.entregado || 0;
-
-    return { pendientes, enProgreso, completadas, entregadas, total: workOrders.length };
-  }, [workOrders]);
 
   // Cargar órdenes al montar el componente
   useEffect(() => {
-    const loadWorkOrders = async () => {
-      try {
-        const orders = await workOrdersApi.getAllWithDetails(0, 100);
-        setWorkOrders(orders);
-      } catch (error) {
-        console.error('Error loading work orders:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadWorkOrders();
+    loadWorkOrders(0, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Actualizar órdenes filtradas cuando cambian las órdenes
+  useEffect(() => {
+    setFilteredOrders(workOrders);
+  }, [workOrders]);
 
   // Función para buscar orden específica
   const handleSearch = async (e: React.FormEvent) => {
@@ -52,45 +35,36 @@ export default function Dashboard() {
       return;
     }
 
-    try {
-      const order = await workOrdersApi.getDetail(orderId);
-      setWorkOrders([order]); // Mostrar solo la orden encontrada
+    const order = await getWorkOrderById(orderId);
+    if (order) {
+      setFilteredOrders([order]); // Mostrar solo la orden encontrada
       setCurrentPage(1);
-    } catch (error) {
-      console.error('Error searching work order:', error);
     }
   };
 
   // Función para resetear la búsqueda
-  const resetSearch = async () => {
+  const resetSearch = () => {
     setSearchTerm("");
-    setIsLoading(true);
-    try {
-      const orders = await workOrdersApi.getAllWithDetails(0, 100);
-      setWorkOrders(orders);
-      setCurrentPage(1);
-    } catch (error) {
-      console.error('Error loading work orders:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    setFilteredOrders(workOrders);
+    setCurrentPage(1);
+    loadWorkOrders(0, 100);
   };
 
-  // Mapear estados al español
+  // Mapear estados al español usando value object
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      recibido: { label: "Recibido", class: "bg-slate-100 text-slate-800" },
-      asignado: { label: "Asignado", class: "bg-cyan-100 text-cyan-800" },
-      por_confirmar: { label: "Por confirmar", class: "bg-gray-100 text-gray-800" },
-      confirmado: { label: "Confirmado", class: "bg-blue-100 text-blue-800" },
-      en_reparacion: { label: "En reparación", class: "bg-amber-100 text-amber-800" },
-      completado: { label: "Completado", class: "bg-green-100 text-green-800" },
-      entregado: { label: "Entregado", class: "bg-slate-200 text-slate-800" },
+    const statusConfig: Record<string, { label: string; class: string }> = {
+      recibido: { label: "Recibido", class: "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200" },
+      asignado: { label: "Asignado", class: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200" },
+      por_confirmar: { label: "Por confirmar", class: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200" },
+      confirmado: { label: "Confirmado", class: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+      en_reparacion: { label: "En reparación", class: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+      completado: { label: "Completado", class: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+      entregado: { label: "Entregado", class: "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200" },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || {
-      label: status,
-      class: "bg-gray-100 text-gray-800",
+    const config = statusConfig[status] || {
+      label: getStatusLabel(status as any),
+      class: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
     };
 
     return (
@@ -101,7 +75,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -259,7 +233,7 @@ export default function Dashboard() {
                     Cargando órdenes...
                   </td>
                 </tr>
-              ) : workOrders.length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     No se encontraron órdenes de trabajo.
@@ -270,7 +244,7 @@ export default function Dashboard() {
                   // Calcular índices para la paginación
                   const indexOfLastItem = currentPage * itemsPerPage;
                   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-                  const currentItems = workOrders.slice(indexOfFirstItem, indexOfLastItem);
+                  const currentItems = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
                   
                   return currentItems.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -278,16 +252,16 @@ export default function Dashboard() {
                         #{order.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {order.client?.name || 'Sin cliente'}
+                        {order.client?.getDisplayName() || 'Sin cliente'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {order.product ? `${order.product.item_type} ${order.product.brand}` : 'Sin producto'}
+                        {order.product ? `${order.product.itemType} ${order.product.getDisplayName()}` : 'Sin producto'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(order.status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {new Date(order.received_date).toLocaleDateString('es-ES')}
+                        {new Date(order.receivedDate).toLocaleDateString('es-ES')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2">
@@ -313,13 +287,13 @@ export default function Dashboard() {
             <div className="text-sm text-gray-500 dark:text-gray-400">
               Mostrando{" "}
               <span className="font-medium">
-                {workOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
+                {filteredOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
               </span>{" "}
               a{" "}
               <span className="font-medium">
-                {Math.min(currentPage * itemsPerPage, workOrders.length)}
+                {Math.min(currentPage * itemsPerPage, filteredOrders.length)}
               </span>{" "}
-              de <span className="font-medium">{workOrders.length}</span> resultados
+              de <span className="font-medium">{filteredOrders.length}</span> resultados
             </div>
             <div className="flex gap-1">
               <button
@@ -330,7 +304,7 @@ export default function Dashboard() {
                 Anterior
               </button>
               {(() => {
-                const totalPages = Math.ceil(workOrders.length / itemsPerPage);
+                const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
                 const pages = [];
                 for (let i = 1; i <= totalPages; i++) {
                   if (
@@ -362,8 +336,8 @@ export default function Dashboard() {
                 return pages;
               })()}
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(workOrders.length / itemsPerPage)))}
-                disabled={currentPage === Math.ceil(workOrders.length / itemsPerPage)}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredOrders.length / itemsPerPage)))}
+                disabled={currentPage === Math.ceil(filteredOrders.length / itemsPerPage)}
                 className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Siguiente

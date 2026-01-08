@@ -1,31 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
-import { usersApi, type User } from "../../services/api";
+import { useUsers } from "../../presentation/hooks/useUsers";
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { users, isLoading, error, loadUsers } = useUsers();
 
   // Cargar usuarios
   useEffect(() => {
     loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
-    try {
-      setIsLoading(true);
-      const usersData = await usersApi.getAll();
-      setUsers(usersData);
-    } catch (error) {
-      console.error('Error loading users:', error);
-      setError("Error cargando usuarios. Intente nuevamente.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadUsers]);
 
   const getRoleBadge = (role: string) => {
     const roleConfig = {
@@ -47,7 +32,7 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="w-full">
       <PageBreadCrumb pageTitle="Usuarios" />
       {/* Header */}
       <div className="mb-8">

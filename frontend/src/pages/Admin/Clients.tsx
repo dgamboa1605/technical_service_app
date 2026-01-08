@@ -1,50 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { clientsApi, type Client } from "../../services/api";
+import { useClients } from "../../presentation/hooks/useClients";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function Clients() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { clients, isLoading, loadClients } = useClients();
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     loadClients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadClients = async () => {
-    setIsLoading(true);
-    try {
-      const data = await clientsApi.getAll();
-      setClients(data);
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filteredClients = clients.filter(client => {
-    if (!searchTerm.trim()) return true;
+  const filteredClients = useMemo(() => {
+    if (!searchTerm.trim()) return clients;
     const term = searchTerm.toLowerCase();
-    return (
+    return clients.filter(client => 
       client.name?.toLowerCase().includes(term) ||
       client.phone?.toLowerCase().includes(term) ||
       client.email?.toLowerCase().includes(term) ||
-      client.document_number?.toLowerCase().includes(term)
+      client.documentNumber?.toLowerCase().includes(term)
     );
-  });
+  }, [clients, searchTerm]);
 
   return (
     <>
       <PageMeta title="Gestión de Clientes" description="Administra la información de tus clientes" />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full">
+        <div className="w-full">
           <PageBreadCrumb pageTitle="Clientes" />
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Gestión de Clientes
@@ -125,12 +113,12 @@ export default function Clients() {
                       <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {client.name}
+                            {client.getDisplayName()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {client.document_number || "-"}
+                            {client.documentNumber || "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

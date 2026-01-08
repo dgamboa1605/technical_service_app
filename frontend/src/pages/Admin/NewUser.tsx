@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usersApi } from "../../services/api";
+import { useUsers } from "../../presentation/hooks/useUsers";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function NewUser() {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { createUser, isLoading, error: hookError } = useUsers();
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: "",
@@ -39,9 +39,8 @@ export default function NewUser() {
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      await usersApi.create({
+      await createUser({
         username: formData.username.trim(),
         email: formData.email.trim(),
         password: formData.password,
@@ -49,9 +48,7 @@ export default function NewUser() {
       });
       navigate("/admin/users");
     } catch (error: any) {
-      setError(error.response?.data?.detail || "Error al crear el usuario");
-    } finally {
-      setIsSubmitting(false);
+      setError(error instanceof Error ? error.message : "Error al crear el usuario");
     }
   };
 
@@ -64,14 +61,14 @@ export default function NewUser() {
         </div>
         <div className="p-6">
           <div className="max-w-3xl mx-auto">
-            {error && (
+            {(error || hookError) && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                 <div className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800 dark:text-red-200">{error}</p>
+                    <p className="text-sm font-medium text-red-800 dark:text-red-200">{error || hookError}</p>
                   </div>
                   <button
                     onClick={() => setError(null)}
@@ -185,16 +182,16 @@ export default function NewUser() {
                     type="button"
                     onClick={() => navigate("/admin/users")}
                     className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                   >
-                    {isSubmitting ? (
+                    {isLoading ? (
                       <>
                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

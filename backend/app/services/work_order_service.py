@@ -97,6 +97,37 @@ def get_work_orders_with_details(db: Session, skip: int = 0, limit: int = 100):
     )
 
 
+def get_work_orders_with_details_for_employee(
+    db: Session, employee_id: int, skip: int = 0, limit: int = 100
+):
+    """
+    Obtiene órdenes con detalles para un empleado.
+    Employee solo ve órdenes asignadas a él o sin técnico asignado (en estado recibido/asignado)
+    """
+    from app.domain.enums import WorkOrderStatusEnum
+    
+    return (
+        db.query(WorkOrder)
+        .options(
+            selectinload(WorkOrder.client),
+            selectinload(WorkOrder.product),
+            selectinload(WorkOrder.technician),
+            selectinload(WorkOrder.history),
+            selectinload(WorkOrder.parts),
+        )
+        .filter(
+            (WorkOrder.technician_id == employee_id) |
+            (
+                (WorkOrder.technician_id.is_(None)) &
+                (WorkOrder.status.in_([WorkOrderStatusEnum.RECIBIDO, WorkOrderStatusEnum.ASIGNADO]))
+            )
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 def update_work_order_status(
     db: Session,
     work_order_id: int,

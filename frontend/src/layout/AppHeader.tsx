@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
-import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import { useAuth } from "../context/AuthContext";
 import { useSidebar } from "../context/SidebarContext";
+import UserDropdown from "../components/header/UserDropdown";
 
 const AppHeader: React.FC = () => {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isLoggedIn, logout } = useAuth();
+  const { user, isLoggedIn } = useAuth();
   const location = useLocation();
   const { toggleMobileSidebar } = useSidebar();
 
@@ -40,14 +40,7 @@ const AppHeader: React.FC = () => {
         {/* Desktop Navigation o usuario logeado */}
         {location.pathname.startsWith('/admin') && isLoggedIn && user ? (
           <div className="flex items-center gap-4">
-            <span className="text-gray-700 dark:text-gray-200 font-medium">{user.username}</span>
-            <button
-              onClick={logout}
-              className="px-3 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              Cerrar sesión
-            </button>
-            <ThemeToggleButton />
+            <UserDropdown />
           </div>
         ) : (
           <>
@@ -60,7 +53,7 @@ const AppHeader: React.FC = () => {
                   className={({ isActive }) =>
                     `px-3 lg:px-4 py-2 text-sm lg:text-base font-medium rounded-lg transition-colors ${
                       isActive
-                        ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-900/30"
+                        ? "active bg-indigo-100 border-b-2 border-indigo-600 dark:bg-indigo-900/30 dark:border-indigo-400"
                         : "text-gray-700 hover:text-indigo-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-indigo-400 dark:hover:bg-gray-800"
                     }`
                   }
@@ -79,7 +72,6 @@ const AppHeader: React.FC = () => {
                 </svg>
                 Ingresar
               </Link>
-              <ThemeToggleButton />
             </div>
           </>
         )}
@@ -111,7 +103,7 @@ const AppHeader: React.FC = () => {
                 className={({ isActive }) =>
                   `px-4 py-3 text-base font-medium rounded-lg transition-colors ${
                     isActive
-                      ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-900/30"
+                      ? "active bg-indigo-100 border-b-2 border-indigo-600 dark:bg-indigo-900/30 dark:border-indigo-400"
                       : "text-gray-700 hover:text-indigo-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-indigo-400 dark:hover:bg-gray-800"
                   }`
                 }

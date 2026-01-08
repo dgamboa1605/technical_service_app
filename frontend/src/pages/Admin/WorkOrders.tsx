@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { workOrdersApi, type WorkOrderDetail } from "../../services/api";
+import { useWorkOrders } from "../../presentation/hooks/useWorkOrders";
+import { getStatusLabel } from "../../domain/value-objects/WorkOrderStatus";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function WorkOrders() {
-  const [workOrders, setWorkOrders] = useState<WorkOrderDetail[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Usar el hook de presentación que encapsula la lógica de negocio
+  const { workOrders, isLoading, loadWorkOrders } = useWorkOrders();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const navigate = useNavigate();
@@ -21,19 +22,8 @@ export default function WorkOrders() {
     if (statusFromUrl) {
       setStatusFilter(statusFromUrl);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-
-  const loadWorkOrders = async () => {
-    setIsLoading(true);
-    try {
-      const orders = await workOrdersApi.getAllWithDetails();
-      setWorkOrders(orders);
-    } catch (error) {
-      console.error('Error loading work orders:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Filtrar órdenes por búsqueda y estado
   const filteredOrders = useMemo(() => {
@@ -60,7 +50,7 @@ export default function WorkOrders() {
     return filtered;
   }, [workOrders, searchTerm, statusFilter]);
 
-  // Mapear estados al español
+  // Mapear estados al español usando el value object
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; class: string }> = {
       recibido: { label: "Recibido", class: "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200" },
@@ -72,7 +62,10 @@ export default function WorkOrders() {
       entregado: { label: "Entregado", class: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
     };
 
-    const config = statusConfig[status] || { label: status, class: "bg-gray-100 text-gray-800" };
+    const config = statusConfig[status] || { 
+      label: getStatusLabel(status as any), 
+      class: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200" 
+    };
     return (
       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${config.class}`}>
         {config.label}
@@ -88,13 +81,10 @@ export default function WorkOrders() {
   return (
     <>
       <PageMeta title="Gestión de Órdenes de Trabajo" description="Administra y supervisa todas las órdenes de trabajo del sistema" />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <PageBreadCrumb pageTitle="Órdenes de Trabajo" />
-        </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="mb-6">
+      <div className="w-full">
+        <PageBreadCrumb pageTitle="Órdenes de Trabajo" />
+        {/* Header */}
+        <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Gestión de Órdenes de Trabajo
             </h1>
@@ -217,7 +207,7 @@ export default function WorkOrders() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900 dark:text-white">
-                            {order.client?.name || "Sin cliente"}
+                            {order.client?.getDisplayName() || "Sin cliente"}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
                             {order.client?.phone || "-"}
@@ -225,10 +215,10 @@ export default function WorkOrders() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 dark:text-white">
-                            {order.product?.item_type || "Sin producto"}
+                            {order.product?.itemType || "Sin producto"}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {order.product?.brand} {order.product?.model}
+                            {order.product?.getDisplayName()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -240,7 +230,7 @@ export default function WorkOrders() {
                           {getStatusBadge(order.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(order.received_date).toLocaleDateString("es-ES")}
+                          {new Date(order.receivedDate).toLocaleDateString("es-ES")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
@@ -257,7 +247,6 @@ export default function WorkOrders() {
               </table>
             </div>
           </div>
-        </div>
       </div>
     </>
   );

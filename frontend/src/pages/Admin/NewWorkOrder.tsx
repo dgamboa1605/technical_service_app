@@ -1,10 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import { useNavigate } from "react-router";
-import { clientsApi, productsApi, workOrdersApi, type Client, type Product } from "../../services/api";
+import { useClients } from "../../presentation/hooks/useClients";
+import { useProducts } from "../../presentation/hooks/useProducts";
+import { CreateWorkOrderUseCase } from "../../application/use-cases/work-orders/CreateWorkOrderUseCase";
+import { workOrderRepository } from "../../infrastructure/repositories/WorkOrderRepository";
+import { clientRepository } from "../../infrastructure/repositories/ClientRepository";
+import type { Client } from "../../domain/entities/Client";
+import type { Product } from "../../domain/entities/Product";
+import type { ServiceType } from "../../domain/value-objects/ServiceType";
 import flatpickr from "flatpickr";
-
-type ServiceType = "taller" | "recojo" | "domicilio" | "instalacion";
 
 interface ClientForm {
   document_number: string;
@@ -75,8 +80,6 @@ export default function NewWorkOrder() {
 
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [guaranteeBrandOptions, setGuaranteeBrandOptions] = useState<string[]>([]);
-  const [brandLoading, setBrandLoading] = useState(false);
-  const [brandError, setBrandError] = useState("");
 
   const [workOrderForm, setWorkOrderForm] = useState<WorkOrderForm>({
     service_type: "taller",
@@ -86,10 +89,18 @@ export default function NewWorkOrder() {
     observations: "",
   });
 
+  // Hooks de la nueva arquitectura
+  const { clients, loadClients, createClient } = useClients();
+  const { products, loadProducts, createProduct } = useProducts();
+  const createWorkOrderUseCase = useMemo(
+    () => new CreateWorkOrderUseCase(workOrderRepository),
+    []
+  );
+
   useEffect(() => {
     const loadServiceNumber = async () => {
       try {
-        const nextNumber = await workOrdersApi.getNextNumber();
+        const nextNumber = await workOrderRepository.getNextNumber();
         setServiceNumber(nextNumber);
       } catch (err) {
         console.error("Error obteniendo correlativo", err);
@@ -98,27 +109,19 @@ export default function NewWorkOrder() {
     };
 
     loadServiceNumber();
+    loadClients();
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cargar opciones de marcas desde productos
   useEffect(() => {
-    const loadBrandOptions = async () => {
-      setBrandLoading(true);
-      setBrandError("");
-      try {
-        const products = await productsApi.getAll();
-        const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
-        setBrandOptions(unique(products.map((p) => p.brand)));
-        setGuaranteeBrandOptions(unique(products.map((p) => p.guaranteeing_brand || "")));
-      } catch (err) {
-        console.error("Error cargando marcas", err);
-        setBrandError("No se pudieron cargar las marcas, use el campo manual.");
-      } finally {
-        setBrandLoading(false);
-      }
-    };
-
-    loadBrandOptions();
-  }, []);
+    if (products.length > 0) {
+      const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
+      setBrandOptions(unique(products.map((p) => p.brand)));
+      setGuaranteeBrandOptions(unique(products.map((p) => p.guaranteeingBrand || "")));
+    }
+  }, [products]);
 
   // Búsqueda automática de cliente con debounce
   useEffect(() => {
@@ -134,13 +137,12 @@ export default function NewWorkOrder() {
 
     setIsSearchingClient(true);
     
-    const timeoutId = setTimeout(async () => {
+    const timeoutId = setTimeout(() => {
       try {
-        // Obtener todos los clientes y filtrar por coincidencia
-        const allClients = await clientsApi.getAll();
-        const matchingClients = allClients.filter(client => 
-          client.document_number && 
-          client.document_number.toLowerCase().includes(docNumber.toLowerCase())
+        // Filtrar clientes cargados por coincidencia
+        const matchingClients = clients.filter(client => 
+          client.documentNumber && 
+          client.documentNumber.toLowerCase().includes(docNumber.toLowerCase())
         );
 
         console.log('Clientes encontrados:', matchingClients.length, 'para búsqueda:', docNumber);
@@ -150,7 +152,7 @@ export default function NewWorkOrder() {
           const client = matchingClients[0];
           setSelectedClient(client);
           setClientForm({
-            document_number: client.document_number || "",
+            document_number: client.documentNumber || "",
             name: client.name || "",
             phone: client.phone || "",
             address: client.address || "",
@@ -226,13 +228,12 @@ export default function NewWorkOrder() {
 
     setIsSearchingProduct(true);
     
-    const timeoutId = setTimeout(async () => {
+    const timeoutId = setTimeout(() => {
       try {
-        // Obtener todos los productos y filtrar por número de serie
-        const allProducts = await productsApi.getAll();
-        const matchingProducts = allProducts.filter(product => 
-          product.serial_number && 
-          product.serial_number.toLowerCase().includes(serialNumber.toLowerCase())
+        // Filtrar productos cargados por número de serie
+        const matchingProducts = products.filter(product => 
+          product.serialNumber && 
+          product.serialNumber.toLowerCase().includes(serialNumber.toLowerCase())
         );
 
         console.log('Productos encontrados:', matchingProducts.length, 'para búsqueda:', serialNumber);
@@ -242,14 +243,14 @@ export default function NewWorkOrder() {
           const product = matchingProducts[0];
           setSelectedProduct(product);
           setProductForm({
-            item_type: product.item_type || "",
+            item_type: product.itemType || "",
             brandSelection: product.brand || "",
             brandCustom: "",
-            guaranteeingBrandSelection: product.guaranteeing_brand || "",
+            guaranteeingBrandSelection: product.guaranteeingBrand || "",
             guaranteeingBrandCustom: "",
             model: product.model || "",
-            serial_number: product.serial_number || "",
-            purchase_date: product.purchase_date || "",
+            serial_number: product.serialNumber || "",
+            purchase_date: product.purchaseDate || "",
             warranty: product.warranty || false,
           });
           setProductSearchResults([]);
@@ -321,7 +322,7 @@ export default function NewWorkOrder() {
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
     setClientForm({
-      document_number: client.document_number || "",
+      document_number: client.documentNumber || "",
       name: client.name || "",
       phone: client.phone || "",
       address: client.address || "",
@@ -346,14 +347,14 @@ export default function NewWorkOrder() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setProductForm({
-      item_type: product.item_type || "",
+      item_type: product.itemType || "",
       brandSelection: product.brand || "",
       brandCustom: "",
-      guaranteeingBrandSelection: product.guaranteeing_brand || "",
+      guaranteeingBrandSelection: product.guaranteeingBrand || "",
       guaranteeingBrandCustom: "",
       model: product.model || "",
-      serial_number: product.serial_number || "",
-      purchase_date: product.purchase_date || "",
+      serial_number: product.serialNumber || "",
+      purchase_date: product.purchaseDate || "",
       warranty: product.warranty || false,
     });
     setProductSearchResults([]);
@@ -474,16 +475,18 @@ export default function NewWorkOrder() {
       let productId: number;
 
       if (selectedClient) {
-        await clientsApi.update(selectedClient.id, {
+        // Actualizar cliente existente
+        const updated = await clientRepository.update(selectedClient.id, {
           document_number: clientForm.document_number.trim(),
           name: clientForm.name.trim(),
           phone: clientForm.phone.trim(),
           address: clientForm.address.trim() || undefined,
           email: clientForm.email.trim() || undefined,
         });
-        clientId = selectedClient.id;
+        clientId = updated.id;
       } else {
-        const created = await clientsApi.create({
+        // Crear nuevo cliente usando el hook
+        const created = await createClient({
           document_number: clientForm.document_number.trim(),
           name: clientForm.name.trim(),
           phone: clientForm.phone.trim(),
@@ -504,7 +507,8 @@ export default function NewWorkOrder() {
             : productForm.guaranteeingBrandSelection.trim()
           : null;
 
-        const product = await productsApi.create({
+        // Crear nuevo producto usando el hook
+        const product = await createProduct({
           item_type: productForm.item_type.trim() || "N/A",
           brand: resolvedBrand,
           guaranteeing_brand: productForm.warranty ? resolvedGuaranteeBrand || null : null,
@@ -517,7 +521,8 @@ export default function NewWorkOrder() {
         productId = product.id;
       }
 
-      await workOrdersApi.create({
+      // Crear orden de trabajo usando el caso de uso
+      await createWorkOrderUseCase.execute({
         client_id: clientId,
         product_id: productId,
         technician_id: null,
@@ -532,7 +537,7 @@ export default function NewWorkOrder() {
 
       setSuccess("Orden registrada correctamente");
       resetForms();
-      const nextNumber = await workOrdersApi.getNextNumber();
+      const nextNumber = await workOrderRepository.getNextNumber();
       setServiceNumber(nextNumber);
 
       setTimeout(() => navigate("/admin/orders"), 1200);
@@ -676,7 +681,7 @@ export default function NewWorkOrder() {
                                 {client.name}
                               </p>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Doc: {client.document_number}
+                                Doc: {client.documentNumber}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-500">
                                 Tel: {client.phone}
@@ -790,7 +795,7 @@ export default function NewWorkOrder() {
                             {product.brand} - {product.model}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Serie: {product.serial_number}
+                            Serie: {product.serialNumber}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-500">
                             {product.warranty ? '✓ Con garantía' : 'Sin garantía'}
@@ -855,7 +860,6 @@ export default function NewWorkOrder() {
                       disabled={!!selectedProduct}
                     />
                   )}
-                  {brandError && <p className="text-xs text-red-600">{brandError}</p>}
                 </div>
               </div>
               <div>
@@ -952,8 +956,6 @@ export default function NewWorkOrder() {
                           className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                         />
                       )}
-                      {brandLoading && <p className="text-xs text-gray-500">Cargando marcas...</p>}
-                      {brandError && <p className="text-xs text-red-600">{brandError}</p>}
                     </div>
                   </div>
                   <div>
