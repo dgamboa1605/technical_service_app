@@ -17,7 +17,7 @@ from app.infrastructure.db.models.user import User
 from app.domain.enums import WorkOrderStatusEnum, RoleEnum, ServiceTypeEnum
 from passlib.context import CryptContext
 
-# Configuración para hash de passwords
+# Configuration for password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_demo_data():
@@ -114,15 +114,15 @@ def create_demo_data():
                 work_orders.append(work_order)
         db.commit()
         
-        print("✅ Datos de demo aleatorios creados exitosamente!")
-        print(f"📊 Estadísticas:")
-        print(f"   - Clientes: {db.query(Client).count()}")
-        print(f"   - Productos: {db.query(Product).count()}")
-        print(f"   - Órdenes: {db.query(WorkOrder).count()}")
-        print(f"   - Usuarios: {db.query(User).count()}")
+        print("Demo data created successfully!")
+        print(f"Statistics:")
+        print(f"   - Clients: {db.query(Client).count()}")
+        print(f"   - Products: {db.query(Product).count()}")
+        print(f"   - Work Orders: {db.query(WorkOrder).count()}")
+        print(f"   - Users: {db.query(User).count()}")
         
     except Exception as e:
-        print(f"❌ Error creando datos: {e}")
+        print(f"Error creating data: {e}")
         db.rollback()
     finally:
         db.close()

@@ -35,7 +35,7 @@ export default function SignInForm() {
       // Navegar al dashboard
       navigate("/admin");
     } catch (err) {
-      console.error("❌ Login error:", err);
+      console.error("Login error:", err);
       setError(err instanceof Error ? err.message : "Invalid username or password");
     } finally {
       setIsLoading(false);

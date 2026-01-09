@@ -2,27 +2,48 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.api.v1.api import api_router
+from app.core.config import settings
 import logging
 
-app = FastAPI(title="Technical Service Web App")
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO if settings.is_production else logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
-origins = [
-    "http://localhost:5173",
-]
+app = FastAPI(
+    title="Technical Service Web App",
+    description="API para gestión de órdenes de servicio técnico",
+    version="1.0.0",
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url="/redoc" if not settings.is_production else None,
+)
+
+# CORS Configuration
+origins = settings.cors_origins_list if settings.cors_origins_list else ["http://localhost:5173"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Trusted Host Middleware (only in production)
+if settings.is_production:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["www.techvel-service.com", "techvel-service.com", "*.techvel-service.com"]
+    )
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """
-    Handler personalizado para errores de validación.
+    Custom handler for validation errors.
     """
     errors = exc.errors()
     error_details = []
