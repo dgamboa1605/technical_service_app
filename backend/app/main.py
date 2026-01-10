@@ -37,7 +37,7 @@ app.add_middleware(
 if settings.is_production:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["www.techvel-service.com", "techvel-service.com", "*.techvel-service.com"]
+        allowed_hosts=["technical-service.duckdns.org", "www.technical-service.duckdns.org", "*.duckdns.org"]
     )
 
 @app.exception_handler(RequestValidationError)
