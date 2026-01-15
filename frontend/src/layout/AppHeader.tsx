@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { useSidebar } from "../context/SidebarContext";
