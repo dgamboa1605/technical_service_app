@@ -24,10 +24,18 @@ app = FastAPI(
 # CORS Configuration
 origins = settings.cors_origins_list if settings.cors_origins_list else ["http://localhost:5173"]
 
+# If "*" is in origins, allow all origins (for testing from different networks)
+if "*" in origins:
+    allow_origins = ["*"]
+    allow_credentials = False  # Cannot use credentials with allow_origins=["*"]
+else:
+    allow_origins = origins
+    allow_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
