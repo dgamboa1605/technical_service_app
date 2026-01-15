@@ -33,36 +33,36 @@ export default function Clients() {
           <PageBreadCrumb pageTitle="Clientes" />
         </div>
         <div className="w-full">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
               Gestión de Clientes
             </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Administra la información de tus clientes
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <div className="flex-1">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar por nombre, teléfono, email o documento..."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
               <button
                 onClick={() => navigate("/admin/clients/new")}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap text-sm sm:text-base"
               >
                 + Nuevo Cliente
               </button>
             </div>
           </div>
 
-          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {isLoading ? (
               "Cargando..."
             ) : (
@@ -71,7 +71,8 @@ export default function Clients() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -149,6 +150,67 @@ export default function Clients() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+              {isLoading ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Cargando clientes...
+                </div>
+              ) : filteredClients.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No se encontraron clientes
+                </div>
+              ) : (
+                filteredClients.map((client) => (
+                  <div
+                    key={client.id}
+                    onClick={() => navigate(`/admin/clients/${client.id}`)}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                  >
+                    <div className="mb-3">
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        {client.getDisplayName()}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {client.documentNumber && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Documento:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1">
+                            {client.documentNumber}
+                          </span>
+                        </div>
+                      )}
+                      {client.phone && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Teléfono:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1">
+                            {client.phone}
+                          </span>
+                        </div>
+                      )}
+                      {client.email && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Email:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1 break-words">
+                            {client.email}
+                          </span>
+                        </div>
+                      )}
+                      {client.address && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Dirección:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1 break-words">
+                            {client.address}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

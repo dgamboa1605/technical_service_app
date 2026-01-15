@@ -20,7 +20,7 @@ function AdminContent() {
         } ${isMobileOpen ? "ml-0" : ""}`}
       >
         <AppHeader />
-        <div className="p-4 mx-auto max-w-7xl w-full md:p-6">
+        <div className="p-3 sm:p-4 md:p-6 mx-auto max-w-7xl w-full">
           <Outlet />
         </div>
       </div>

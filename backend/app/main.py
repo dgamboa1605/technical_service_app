@@ -34,11 +34,12 @@ app.add_middleware(
 )
 
 # Trusted Host Middleware (only in production)
-if settings.is_production:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["technical-service.duckdns.org", "www.technical-service.duckdns.org", "*.duckdns.org"]
-    )
+# Comentado para permitir acceso por IP
+# if settings.is_production:
+#     app.add_middleware(
+#         TrustedHostMiddleware,
+#         allowed_hosts=["technical-service.duckdns.org", "www.technical-service.duckdns.org", "*.duckdns.org"]
+#     )
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

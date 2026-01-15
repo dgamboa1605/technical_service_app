@@ -87,20 +87,20 @@ export default function UserDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={toggleDropdown}
-        className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+        className="flex items-center gap-2 sm:gap-3 px-1.5 sm:px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
         aria-label="User menu"
         aria-expanded={isOpen}
       >
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <img 
             src="/images/logo/user.png" 
             alt={user.username}
-            className="h-10 w-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
           />
-          <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
         </div>
-        <div className="hidden md:flex flex-col items-start">
-          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        <div className="hidden sm:flex flex-col items-start">
+          <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px]">
             {user.username}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
@@ -108,7 +108,7 @@ export default function UserDropdown() {
           </span>
         </div>
         <svg
-          className={`hidden md:block w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${
+          className={`hidden sm:block w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200 flex-shrink-0 ${
             isOpen ? "rotate-180" : ""
           }`}
           fill="none"
@@ -122,7 +122,7 @@ export default function UserDropdown() {
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute right-0 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-hidden z-50"
+        className="absolute right-0 mt-2 w-72 sm:w-80 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-hidden z-50 max-h-[calc(100vh-5rem)] overflow-y-auto"
       >
         {/* Header del dropdown con información del usuario */}
         <div className="px-4 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700">
