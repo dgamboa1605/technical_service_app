@@ -3,20 +3,20 @@ import type { User } from '../../domain/entities/User';
 import { GetAllUsersUseCase } from '../../application/use-cases/users/GetAllUsersUseCase';
 import { GetTechniciansUseCase } from '../../application/use-cases/users/GetTechniciansUseCase';
 import { CreateUserUseCase } from '../../application/use-cases/users/CreateUserUseCase';
-import { userRepository } from '../../infrastructure/repositories/UserRepository';
+import { useRepositories } from '../../context/RepositoriesContext';
 
 /**
  * Hook para gestión de usuarios
  */
 export function useUsers() {
+  const { userRepository } = useRepositories();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Instanciar casos de uso
-  const getAllUsersUseCase = useMemo(() => new GetAllUsersUseCase(userRepository), []);
-  const getTechniciansUseCase = useMemo(() => new GetTechniciansUseCase(userRepository), []);
-  const createUserUseCase = useMemo(() => new CreateUserUseCase(userRepository), []);
+  const getAllUsersUseCase = useMemo(() => new GetAllUsersUseCase(userRepository), [userRepository]);
+  const getTechniciansUseCase = useMemo(() => new GetTechniciansUseCase(userRepository), [userRepository]);
+  const createUserUseCase = useMemo(() => new CreateUserUseCase(userRepository), [userRepository]);
 
   /**
    * Carga todos los usuarios

@@ -3,13 +3,12 @@ uvicorn
 sqlalchemy
 psycopg2-binary
 python-jose
-passlib[bcrypt]
 pydantic
 email-validator
 alembic
 pydantic-settings
 python-multipart
-bcrypt==4.0.1
+bcrypt
 
 # Testing
 pytest==8.0.0

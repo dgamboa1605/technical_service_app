@@ -3,9 +3,9 @@ import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import { useNavigate } from "react-router";
 import { useClients } from "../../presentation/hooks/useClients";
 import { useProducts } from "../../presentation/hooks/useProducts";
+import { useDebouncedSearch } from "../../presentation/hooks/useDebouncedSearch";
 import { CreateWorkOrderUseCase } from "../../application/use-cases/work-orders/CreateWorkOrderUseCase";
-import { workOrderRepository } from "../../infrastructure/repositories/WorkOrderRepository";
-import { clientRepository } from "../../infrastructure/repositories/ClientRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 import type { Client } from "../../domain/entities/Client";
 import type { Product } from "../../domain/entities/Product";
 import type { ServiceType } from "../../domain/value-objects/ServiceType";
@@ -39,6 +39,18 @@ interface WorkOrderForm {
   observations: string;
 }
 
+const EMPTY_PRODUCT_FORM: ProductForm = {
+  item_type: "",
+  brandSelection: "",
+  brandCustom: "",
+  guaranteeingBrandSelection: "",
+  guaranteeingBrandCustom: "",
+  model: "",
+  serial_number: "",
+  purchase_date: "",
+  warranty: false,
+};
+
 export default function NewWorkOrder() {
   const navigate = useNavigate();
 
@@ -48,11 +60,9 @@ export default function NewWorkOrder() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isSearchingClient, setIsSearchingClient] = useState(false);
   const [clientSearchResults, setClientSearchResults] = useState<Client[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isSearchingProduct, setIsSearchingProduct] = useState(false);
   const [productSearchResults, setProductSearchResults] = useState<Product[]>([]);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const purchaseDateRef = useRef<HTMLInputElement | null>(null);
@@ -89,12 +99,28 @@ export default function NewWorkOrder() {
     observations: "",
   });
 
-  // Hooks de la nueva arquitectura
+  const { workOrderRepository, clientRepository } = useRepositories();
   const { clients, loadClients, createClient } = useClients();
   const { products, loadProducts, createProduct } = useProducts();
+
+  const docNumber = clientForm.document_number.trim();
+  const serialNumber = productForm.serial_number.trim();
+  const { matchingItems: matchingClients, isSearching: isSearchingClient } = useDebouncedSearch(
+    docNumber,
+    clients,
+    (c) => c.documentNumber ?? "",
+    600
+  );
+  const { matchingItems: matchingProducts, isSearching: isSearchingProduct } = useDebouncedSearch(
+    serialNumber,
+    products,
+    (p) => p.serialNumber ?? "",
+    600
+  );
+
   const createWorkOrderUseCase = useMemo(
     () => new CreateWorkOrderUseCase(workOrderRepository),
-    []
+    [workOrderRepository]
   );
 
   useEffect(() => {
@@ -111,8 +137,7 @@ export default function NewWorkOrder() {
     loadServiceNumber();
     loadClients();
     loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [workOrderRepository, loadClients, loadProducts]);
 
   // Cargar opciones de marcas desde productos
   useEffect(() => {
@@ -123,160 +148,84 @@ export default function NewWorkOrder() {
     }
   }, [products]);
 
-  // Búsqueda automática de cliente con debounce
+  // Sincronizar resultados de búsqueda de cliente con el estado de la UI
   useEffect(() => {
-    const docNumber = clientForm.document_number.trim();
-    
     if (!docNumber) {
       setSelectedClient(null);
-      setIsSearchingClient(false);
       setClientSearchResults([]);
       setShowClientDropdown(false);
       return;
     }
+    if (isSearchingClient) return;
 
-    setIsSearchingClient(true);
-    
-    const timeoutId = setTimeout(() => {
-      try {
-        // Filtrar clientes cargados por coincidencia
-        const matchingClients = clients.filter(client => 
-          client.documentNumber && 
-          client.documentNumber.toLowerCase().includes(docNumber.toLowerCase())
-        );
-
-        console.log('Clientes encontrados:', matchingClients.length, 'para búsqueda:', docNumber);
-
-        if (matchingClients.length === 1) {
-          // Si solo hay 1 coincidencia, seleccionarlo automáticamente
-          const client = matchingClients[0];
-          setSelectedClient(client);
-          setClientForm({
-            document_number: client.documentNumber || "",
-            name: client.name || "",
-            phone: client.phone || "",
-            address: client.address || "",
-            email: client.email || "",
-          });
-          setClientSearchResults([]);
-          setShowClientDropdown(false);
-          setSelectedProduct(null);
-          setProductForm({
-            item_type: "",
-            brandSelection: "",
-            brandCustom: "",
-            guaranteeingBrandSelection: "",
-            guaranteeingBrandCustom: "",
-            model: "",
-            serial_number: "",
-            purchase_date: "",
-            warranty: false,
-          });
-        } else if (matchingClients.length > 1) {
-          // Si hay múltiples coincidencias, mostrar lista
-          setClientSearchResults(matchingClients);
-          setShowClientDropdown(true);
-          setSelectedClient(null);
-        } else {
-          // No se encontró ningún cliente
-          setSelectedClient(null);
-          setClientSearchResults([]);
-          setShowClientDropdown(false);
-          setClientForm((prev) => ({
-            ...prev,
-            name: "",
-            phone: "",
-            address: "",
-            email: "",
-          }));
-          setSelectedProduct(null);
-          setProductForm({
-            item_type: "",
-            brandSelection: "",
-            brandCustom: "",
-            guaranteeingBrandSelection: "",
-            guaranteeingBrandCustom: "",
-            model: "",
-            serial_number: "",
-            purchase_date: "",
-            warranty: false,
-          });
-        }
-      } catch (err) {
-        console.error("Error buscando clientes:", err);
+    if (matchingClients.length === 1) {
+      const client = matchingClients[0];
+      if (selectedClient?.id !== client.id) {
+        setSelectedClient(client);
+        setClientForm({
+          document_number: client.documentNumber || "",
+          name: client.name || "",
+          phone: client.phone || "",
+          address: client.address || "",
+          email: client.email || "",
+        });
         setClientSearchResults([]);
         setShowClientDropdown(false);
-      } finally {
-        setIsSearchingClient(false);
+        setSelectedProduct(null);
+        setProductForm(EMPTY_PRODUCT_FORM);
       }
-    }, 600); // Espera 600ms después de que el usuario deje de escribir
+    } else if (matchingClients.length > 1) {
+      setClientSearchResults(matchingClients);
+      setShowClientDropdown(true);
+      setSelectedClient(null);
+    } else {
+      setSelectedClient(null);
+      setClientSearchResults([]);
+      setShowClientDropdown(false);
+      setClientForm((prev) => ({ ...prev, name: "", phone: "", address: "", email: "" }));
+      setSelectedProduct(null);
+      setProductForm(EMPTY_PRODUCT_FORM);
+    }
+  }, [docNumber, isSearchingClient, matchingClients, selectedClient?.id]);
 
-    return () => clearTimeout(timeoutId);
-  }, [clientForm.document_number]);
-
-  // Búsqueda automática de producto con debounce
+  // Sincronizar resultados de búsqueda de producto con el estado de la UI
   useEffect(() => {
-    const serialNumber = productForm.serial_number.trim();
-    
     if (!serialNumber) {
       setSelectedProduct(null);
-      setIsSearchingProduct(false);
       setProductSearchResults([]);
       setShowProductDropdown(false);
       return;
     }
+    if (isSearchingProduct) return;
 
-    setIsSearchingProduct(true);
-    
-    const timeoutId = setTimeout(() => {
-      try {
-        // Filtrar productos cargados por número de serie
-        const matchingProducts = products.filter(product => 
-          product.serialNumber && 
-          product.serialNumber.toLowerCase().includes(serialNumber.toLowerCase())
-        );
-
-        console.log('Productos encontrados:', matchingProducts.length, 'para búsqueda:', serialNumber);
-
-        if (matchingProducts.length === 1) {
-          // Si solo hay 1 coincidencia, seleccionarlo automáticamente
-          const product = matchingProducts[0];
-          setSelectedProduct(product);
-          setProductForm({
-            item_type: product.itemType || "",
-            brandSelection: product.brand || "",
-            brandCustom: "",
-            guaranteeingBrandSelection: product.guaranteeingBrand || "",
-            guaranteeingBrandCustom: "",
-            model: product.model || "",
-            serial_number: product.serialNumber || "",
-            purchase_date: product.purchaseDate || "",
-            warranty: product.warranty || false,
-          });
-          setProductSearchResults([]);
-          setShowProductDropdown(false);
-        } else if (matchingProducts.length > 1) {
-          // Si hay múltiples coincidencias, mostrar lista
-          setProductSearchResults(matchingProducts);
-          setShowProductDropdown(true);
-          setSelectedProduct(null);
-        } else {
-          // No se encontró ningún producto
-          setSelectedProduct(null);
-          setProductSearchResults([]);
-          setShowProductDropdown(false);
-        }
-      } catch (err) {
-        console.error("Error buscando productos:", err);
+    if (matchingProducts.length === 1) {
+      const product = matchingProducts[0];
+      if (selectedProduct?.id !== product.id) {
+        setSelectedProduct(product);
+        setProductForm({
+          item_type: product.itemType || "",
+          brandSelection: product.brand || "",
+          brandCustom: "",
+          guaranteeingBrandSelection: product.guaranteeingBrand || "",
+          guaranteeingBrandCustom: "",
+          model: product.model || "",
+          serial_number: product.serialNumber || "",
+          purchase_date: product.purchaseDate || "",
+          warranty: product.warranty || false,
+        });
         setProductSearchResults([]);
         setShowProductDropdown(false);
-      } finally {
-        setIsSearchingProduct(false);
       }
-    }, 600); // Espera 600ms después de que el usuario deje de escribir
-
-    return () => clearTimeout(timeoutId);
-  }, [productForm.serial_number]);
+    } else if (matchingProducts.length > 1) {
+      setProductSearchResults(matchingProducts);
+      setShowProductDropdown(true);
+      setSelectedProduct(null);
+    } else {
+      setSelectedProduct(null);
+      setProductSearchResults([]);
+      setShowProductDropdown(false);
+    }
+  }, [serialNumber, isSearchingProduct, matchingProducts, selectedProduct?.id]);
 
   useEffect(() => {
     if (!productForm.warranty) {

@@ -16,7 +16,7 @@ def create_client(
     _: User = Depends(require_admin),
 ):
     """Solo administradores pueden crear clientes"""
-    return client_service.create_client(db, client.dict())
+    return client_service.create_client(db, client.model_dump())
 
 
 @router.get("/", response_model=list[ClientOut])
@@ -54,7 +54,7 @@ def update_client(
     _: User = Depends(require_admin),
 ):
     """Solo administradores pueden actualizar clientes"""
-    updated_client = client_service.update_client(db, client_id, client.dict())
+    updated_client = client_service.update_client(db, client_id, client.model_dump())
     if not updated_client:
         raise HTTPException(status_code=404, detail="Client not found")
     return updated_client

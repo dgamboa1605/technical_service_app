@@ -2,18 +2,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.infrastructure.auth.login_handler import verify_token
-from app.infrastructure.db.session import SessionLocal
 from app.infrastructure.db.models.user import User
 
+from app.api.dependencies.database import get_db
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def get_current_user(
@@ -31,9 +24,3 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
-
-
-def get_current_active_admin(current_user: User = Depends(get_current_user)):
-    if getattr(current_user, "role", None) != "admin":
-        raise HTTPException(status_code=403, detail="Admin privileges required")
-    return current_user

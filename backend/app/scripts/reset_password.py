@@ -7,8 +7,9 @@ Uso: python3 -m app.scripts.reset_password <username> <new_password>
 import sys
 from pathlib import Path
 
-# Agregar el directorio raíz al path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Add backend root to path (run from backend: python -m app.scripts.reset_password)
+_backend = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(_backend))
 
 from sqlalchemy.orm import Session
 from app.infrastructure.db.session import SessionLocal

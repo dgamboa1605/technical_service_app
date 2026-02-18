@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { productRepository } from "../../infrastructure/repositories/ProductRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 import type { Product } from "../../domain/entities/Product";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
@@ -8,6 +8,7 @@ import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
 
 export default function ProductDetail() {
+  const { productRepository } = useRepositories();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);

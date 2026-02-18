@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { clientRepository } from "../../infrastructure/repositories/ClientRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 import type { Client } from "../../domain/entities/Client";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function ClientDetail() {
+  const { clientRepository } = useRepositories();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);

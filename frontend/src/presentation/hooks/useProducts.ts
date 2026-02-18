@@ -2,19 +2,19 @@ import { useState, useMemo, useCallback } from 'react';
 import type { Product } from '../../domain/entities/Product';
 import { GetAllProductsUseCase } from '../../application/use-cases/products/GetAllProductsUseCase';
 import { CreateProductUseCase } from '../../application/use-cases/products/CreateProductUseCase';
-import { productRepository } from '../../infrastructure/repositories/ProductRepository';
+import { useRepositories } from '../../context/RepositoriesContext';
 
 /**
  * Hook para gestión de productos
  */
 export function useProducts() {
+  const { productRepository } = useRepositories();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Instanciar casos de uso
-  const getAllProductsUseCase = useMemo(() => new GetAllProductsUseCase(productRepository), []);
-  const createProductUseCase = useMemo(() => new CreateProductUseCase(productRepository), []);
+  const getAllProductsUseCase = useMemo(() => new GetAllProductsUseCase(productRepository), [productRepository]);
+  const createProductUseCase = useMemo(() => new CreateProductUseCase(productRepository), [productRepository]);
 
   /**
    * Carga todos los productos

@@ -3,21 +3,22 @@ import type { User } from '../../domain/entities/User';
 import { LoginUseCase } from '../../application/use-cases/auth/LoginUseCase';
 import { GetCurrentUserUseCase } from '../../application/use-cases/auth/GetCurrentUserUseCase';
 import { LogoutUseCase } from '../../application/use-cases/auth/LogoutUseCase';
-import { authRepository } from '../../infrastructure/repositories/AuthRepository';
+import { useRepositories } from '../../context/RepositoriesContext';
+import { useAsyncAction } from './useAsyncAction';
 
 /**
  * Hook para gestión de autenticación
  * Encapsula la lógica de login, logout y obtención del usuario actual
  */
 export function useAuth() {
+  const { authRepository } = useRepositories();
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const { run, isLoading: loginLoading, error, resetError } = useAsyncAction();
 
-  // Instanciar casos de uso
-  const loginUseCase = useMemo(() => new LoginUseCase(authRepository), []);
-  const getCurrentUserUseCase = useMemo(() => new GetCurrentUserUseCase(authRepository), []);
-  const logoutUseCase = useMemo(() => new LogoutUseCase(authRepository), []);
+  const loginUseCase = useMemo(() => new LoginUseCase(authRepository), [authRepository]);
+  const getCurrentUserUseCase = useMemo(() => new GetCurrentUserUseCase(authRepository), [authRepository]);
+  const logoutUseCase = useMemo(() => new LogoutUseCase(authRepository), [authRepository]);
 
   /**
    * Inicializa la autenticación al montar el componente
@@ -25,7 +26,7 @@ export function useAuth() {
   useEffect(() => {
     const initializeAuth = async () => {
       if (!authRepository.isAuthenticated()) {
-        setIsLoading(false);
+        setInitialLoading(false);
         return;
       }
 
@@ -37,32 +38,28 @@ export function useAuth() {
         logoutUseCase.execute();
         setUser(null);
       } finally {
-        setIsLoading(false);
+        setInitialLoading(false);
       }
     };
 
     initializeAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authRepository, getCurrentUserUseCase, logoutUseCase]);
 
   /**
    * Realiza el login
    */
-  const login = useCallback(async (username: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { user: loggedInUser } = await loginUseCase.execute({ username, password });
-      setUser(loggedInUser);
-      return loggedInUser;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Invalid credentials';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [loginUseCase]);
+  const login = useCallback(
+    async (username: string, password: string) => {
+      const result = await run(async () => {
+        const { user: loggedInUser } = await loginUseCase.execute({ username, password });
+        setUser(loggedInUser);
+        return loggedInUser;
+      });
+      if (result !== null) return result;
+      throw new Error('Invalid credentials');
+    },
+    [run, loginUseCase]
+  );
 
   /**
    * Realiza el logout
@@ -70,15 +67,17 @@ export function useAuth() {
   const logout = useCallback(() => {
     logoutUseCase.execute();
     setUser(null);
-    setError(null);
-  }, [logoutUseCase]);
+    resetError();
+  }, [logoutUseCase, resetError]);
 
   const isLoggedIn = !!user;
+  const isLoading = initialLoading || loginLoading;
 
   return {
     user,
     isLoading,
     error,
+    resetError,
     isLoggedIn,
     login,
     logout,

@@ -1,3 +1,5 @@
+import { USER_ROLES } from '../constants';
+
 /**
  * Entidad de Dominio: Usuario
  */
@@ -23,21 +25,21 @@ export class User {
    * Verifica si el usuario es administrador
    */
   isAdmin(): boolean {
-    return this.role === 'admin';
+    return this.role === USER_ROLES.ADMIN;
   }
 
   /**
    * Verifica si el usuario es empleado
    */
   isEmployee(): boolean {
-    return this.role === 'admin' || this.role === 'employee';
+    return this.role === USER_ROLES.ADMIN || this.role === USER_ROLES.EMPLOYEE;
   }
 
   /**
    * Verifica si el usuario es técnico
    */
   isTechnician(): boolean {
-    return this.role === 'technician' || this.isEmployee();
+    return this.role === USER_ROLES.TECHNICIAN || this.isEmployee();
   }
 }
 

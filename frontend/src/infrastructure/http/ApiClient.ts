@@ -3,6 +3,9 @@
  * Encapsula la lógica de peticiones HTTP y manejo de autenticación
  */
 
+import { storageAdapter } from '../storage/LocalStorageAdapter';
+import { AUTH_TOKEN_KEY } from '../auth/constants';
+
 // Usar variable de entorno o valor por defecto para desarrollo
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -18,10 +21,10 @@ export class ApiClient {
   }
 
   /**
-   * Obtiene el token de autenticación del almacenamiento local
+   * Obtiene el token de autenticación vía el adaptador de almacenamiento
    */
   private getAuthToken(): string | null {
-    return localStorage.getItem('access_token');
+    return storageAdapter.getItem(AUTH_TOKEN_KEY);
   }
 
   /**

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Product } from "../../domain/entities/Product";
 import { GetAllProductsUseCase } from "../../application";
-import { productRepository } from "../../infrastructure/repositories/ProductRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 
 interface ProductSelectorProps {
   clientId: number | null;
@@ -10,12 +10,13 @@ interface ProductSelectorProps {
 }
 
 export default function ProductSelector({ clientId, onProductSelected, onNewProduct }: ProductSelectorProps) {
+  const { productRepository } = useRepositories();
   const [clientProducts, setClientProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const getAllProductsUseCase = useMemo(() => new GetAllProductsUseCase(productRepository), []);
+  const getAllProductsUseCase = useMemo(() => new GetAllProductsUseCase(productRepository), [productRepository]);
 
   useEffect(() => {
     if (clientId) {

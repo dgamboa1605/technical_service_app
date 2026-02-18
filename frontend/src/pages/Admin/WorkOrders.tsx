@@ -13,17 +13,15 @@ export default function WorkOrders() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Cargar órdenes al montar el componente
+  // Cargar órdenes al montar y leer filtro de estado desde la URL
   useEffect(() => {
     loadWorkOrders();
-    
-    // Leer filtro de estado desde la URL
+
     const statusFromUrl = searchParams.get("status");
     if (statusFromUrl) {
       setStatusFilter(statusFromUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [loadWorkOrders, searchParams]);
 
   // Filtrar órdenes por búsqueda y estado
   const filteredOrders = useMemo(() => {

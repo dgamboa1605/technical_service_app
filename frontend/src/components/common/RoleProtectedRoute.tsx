@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router';
 import { useAuthorization } from '../../presentation/hooks/useAuthorization';
+import { USER_ROLES } from '../../domain/constants';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -27,9 +28,9 @@ export const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
   // Verificar si el usuario tiene uno de los roles permitidos
   const hasAccess = allowedRoles.some((role) => {
     switch (role) {
-      case 'admin':
+      case USER_ROLES.ADMIN:
         return isAdmin;
-      case 'employee':
+      case USER_ROLES.EMPLOYEE:
         return isEmployee; // isEmployee incluye admin
       default:
         return false;

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { userRepository } from "../../infrastructure/repositories/UserRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 import type { User } from "../../domain/entities/User";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function UserDetail() {
+  const { userRepository } = useRepositories();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);

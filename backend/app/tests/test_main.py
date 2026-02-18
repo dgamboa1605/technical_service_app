@@ -17,19 +17,17 @@ def test_root_redirect():
 
 @pytest.mark.unit
 def test_health_check():
-    """Test health check endpoint"""
+    """Root redirects to /docs; no dedicated /health endpoint."""
     client = TestClient(app)
-    # Add health check endpoint if you have one
-    # response = client.get("/health")
-    # assert response.status_code == 200
-    pass
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
 
 
 @pytest.mark.unit
 def test_docs_accessible():
-    """Test API docs are accessible in development"""
+    """Test API docs are accessible (when not in production mode)."""
     client = TestClient(app)
     response = client.get("/docs")
-    # In production, docs might be disabled
-    # assert response.status_code in [200, 404]
-    pass
+    # In production docs_url is None so /docs may 404
+    assert response.status_code in (200, 404)

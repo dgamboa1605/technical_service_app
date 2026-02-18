@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import type { Client } from "../../domain/entities/Client";
 import { GetAllClientsUseCase } from "../../application";
-import { clientRepository } from "../../infrastructure/repositories/ClientRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 
 interface ClientSelectorProps {
   onClientSelected: (client: Client | null) => void;
@@ -9,13 +9,14 @@ interface ClientSelectorProps {
 }
 
 export default function ClientSelector({ onClientSelected, onNewClient }: ClientSelectorProps) {
+  const { clientRepository } = useRepositories();
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showResults, setShowResults] = useState(false);
 
-  const getAllClientsUseCase = useMemo(() => new GetAllClientsUseCase(clientRepository), []);
+  const getAllClientsUseCase = useMemo(() => new GetAllClientsUseCase(clientRepository), [clientRepository]);
 
   const handleSearch = async (term: string) => {
     setSearchTerm(term);

@@ -2,19 +2,19 @@ import { useState, useMemo, useCallback } from 'react';
 import type { Client } from '../../domain/entities/Client';
 import { GetAllClientsUseCase } from '../../application/use-cases/clients/GetAllClientsUseCase';
 import { CreateClientUseCase } from '../../application/use-cases/clients/CreateClientUseCase';
-import { clientRepository } from '../../infrastructure/repositories/ClientRepository';
+import { useRepositories } from '../../context/RepositoriesContext';
 
 /**
  * Hook para gestión de clientes
  */
 export function useClients() {
+  const { clientRepository } = useRepositories();
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Instanciar casos de uso
-  const getAllClientsUseCase = useMemo(() => new GetAllClientsUseCase(clientRepository), []);
-  const createClientUseCase = useMemo(() => new CreateClientUseCase(clientRepository), []);
+  const getAllClientsUseCase = useMemo(() => new GetAllClientsUseCase(clientRepository), [clientRepository]);
+  const createClientUseCase = useMemo(() => new CreateClientUseCase(clientRepository), [clientRepository]);
 
   /**
    * Carga todos los clientes

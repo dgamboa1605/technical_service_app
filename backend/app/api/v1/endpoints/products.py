@@ -16,7 +16,7 @@ def create_product(
     _: User = Depends(require_admin),
 ):
     """Solo administradores pueden crear productos"""
-    return product_service.create_product(db, product.dict())
+    return product_service.create_product(db, product.model_dump())
 
 
 @router.get("/", response_model=list[ProductOut])
@@ -47,7 +47,7 @@ def update_product(
 ):
     """Solo administradores pueden actualizar productos"""
     updated_product = product_service.update_product(
-        db, product_id, product.dict(exclude_unset=True)
+        db, product_id, product.model_dump(exclude_unset=True)
     )
     if not updated_product:
         raise HTTPException(status_code=404, detail="Product not found")

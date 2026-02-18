@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import type { WorkOrder } from "../../domain/entities/WorkOrder";
 import { GetWorkOrderDetailUseCase, ConfirmWorkOrderUseCase } from "../../application";
-import { workOrderRepository } from "../../infrastructure/repositories/WorkOrderRepository";
+import { useRepositories } from "../../context/RepositoriesContext";
 
 const STATUS_LABEL: Record<string, string> = {
   recibido: "Recibido",
@@ -24,14 +24,15 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function TrackOrder() {
+  const { workOrderRepository } = useRepositories();
   const [orderNumber, setOrderNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [orderData, setOrderData] = useState<WorkOrder | null>(null);
   const [error, setError] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const getWorkOrderDetailUseCase = useMemo(() => new GetWorkOrderDetailUseCase(workOrderRepository), []);
-  const confirmWorkOrderUseCase = useMemo(() => new ConfirmWorkOrderUseCase(workOrderRepository), []);
+  const getWorkOrderDetailUseCase = useMemo(() => new GetWorkOrderDetailUseCase(workOrderRepository), [workOrderRepository]);
+  const confirmWorkOrderUseCase = useMemo(() => new ConfirmWorkOrderUseCase(workOrderRepository), [workOrderRepository]);
 
   const handleConfirm = async () => {
     if (!orderData || orderData.status !== 'por_confirmar') return;

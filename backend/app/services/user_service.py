@@ -1,9 +1,8 @@
 from sqlalchemy.orm import Session
-from app.infrastructure.db.models.user import User
-from app.domain.enums import RoleEnum
-from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.core.security import hash_password
+from app.domain.enums import RoleEnum
+from app.infrastructure.db.models.user import User
 
 
 def get_user_by_email(db: Session, email: str):
@@ -15,7 +14,7 @@ def get_user_by_username(db: Session, username: str):
 
 
 def create_user(db: Session, username: str, email: str, password: str, role: RoleEnum):
-    hashed_password = pwd_context.hash(password)
+    hashed_password = hash_password(password)
     user = User(
         username=username, email=email, hashed_password=hashed_password, role=role
     )
@@ -53,7 +52,7 @@ def update_user(db: Session, user_id: int, username: str = None, email: str = No
     if email is not None:
         user.email = email
     if password is not None:
-        user.hashed_password = pwd_context.hash(password)
+        user.hashed_password = hash_password(password)
     if role is not None:
         user.role = role
     

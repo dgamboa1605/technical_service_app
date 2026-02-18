@@ -1,13 +1,19 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { User } from '../domain/entities/User';
 import { useAuth as useAuthHook } from '../presentation/hooks/useAuth';
-import { storageAdapter } from '../infrastructure/storage/LocalStorageAdapter';
-import { authRepository } from '../infrastructure/repositories/AuthRepository';
+import { useRepositories } from './RepositoriesContext';
 
+/**
+ * Single supported auth flow: login with credentials via login(username, password).
+ * Use refreshUser(user) only to update the current user in context (e.g. after profile edit).
+ */
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (user: User, token: string) => void;
+  /** Login with username and password. Throws on failure. */
+  login: (username: string, password: string) => Promise<void>;
+  /** Updates the current user in context without changing the token (e.g. after profile update). */
+  refreshUser: (user: User) => void;
   logout: () => void;
   isLoggedIn: boolean;
 }
@@ -27,31 +33,22 @@ interface AuthProviderProps {
 }
 
 /**
- * AuthProvider refactorizado para usar la nueva arquitectura
- * Mantiene compatibilidad con el código existente mientras usa los casos de uso
+ * AuthProvider: single entry point for auth.
+ * Login is done via credentials only; refreshUser updates in-memory user (e.g. after profile edit).
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  // Usar el hook de presentación que encapsula la lógica de autenticación
-  const { user: authUser, isLoading: authLoading, logout: authLogout } = useAuthHook();
-  
-  // Usar directamente el usuario del hook para evitar condiciones de carrera
-  // Solo mantener estado local para el login manual que actualiza el token
+  const { authRepository } = useRepositories();
+  const { user: authUser, isLoading: authLoading, logout: authLogout, login: authLogin } = useAuthHook();
   const [manualUser, setManualUser] = useState<User | null>(null);
 
-  // El usuario final: manualUser tiene prioridad si existe (para actualizaciones recientes),
-  // de lo contrario usar authUser (cargado al inicio)
   const user = manualUser || authUser;
 
-  /**
-   * Login manual (para compatibilidad con código existente)
-   * Guarda el token y actualiza el usuario
-   * Nota: Esto es para compatibilidad, idealmente debería usar authLogin
-   */
-  const login = useCallback((userData: User, token: string) => {
-    storageAdapter.setItem('access_token', token);
+  const login = useCallback(async (username: string, password: string) => {
+    await authLogin(username, password);
+  }, [authLogin]);
+
+  const refreshUser = useCallback((userData: User) => {
     setManualUser(userData);
-    // También intentar hacer login con el hook para mantener consistencia
-    // Pero no esperamos el resultado para mantener compatibilidad
   }, []);
 
   /**
@@ -71,6 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isLoading,
     login,
+    refreshUser,
     logout,
     isLoggedIn: !!user,
   };

@@ -17,8 +17,7 @@ export default function Dashboard() {
   // Cargar órdenes al montar el componente
   useEffect(() => {
     loadWorkOrders(0, 100);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadWorkOrders]);
 
   // Actualizar órdenes filtradas cuando cambian las órdenes
   useEffect(() => {

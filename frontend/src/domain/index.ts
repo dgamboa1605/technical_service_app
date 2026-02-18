@@ -3,6 +3,10 @@
  * Exporta todas las entidades, value objects e interfaces del dominio
  */
 
+// Constants
+export { USER_ROLES } from './constants';
+export type { UserRole } from './constants';
+
 // Entities
 export { User } from './entities/User';
 export { Client } from './entities/Client';

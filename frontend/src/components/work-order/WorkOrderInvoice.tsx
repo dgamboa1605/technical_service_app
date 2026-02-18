@@ -1,20 +1,18 @@
 import type { WorkOrder } from "../../domain/entities/WorkOrder";
+import { formatDateWithOptions } from "../../utils/date";
 
 interface WorkOrderInvoiceProps {
   order: WorkOrder;
 }
 
+function formatInvoiceDate(date: string | null | undefined): string {
+  if (date == null || date === '') return '-';
+  return formatDateWithOptions(date, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
   const partsTotal = order.parts?.reduce((sum, p) => sum + p.total, 0) || 0;
   const grandTotal = partsTotal + (order.laborCost || 0);
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
 
   return (
     <div className="bg-white p-8 dark:bg-gray-800 print:bg-white print:p-8">
@@ -27,7 +25,7 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-gray-900 dark:text-white print:text-gray-900">#{order.id}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 print:text-gray-600">{formatDate(order.receivedDate)}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 print:text-gray-600">{formatInvoiceDate(order.receivedDate)}</p>
           </div>
         </div>
       </div>
@@ -136,7 +134,7 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           <div className="text-right">
             <p className="mb-2">Estado: <span className="font-semibold uppercase">{order.status.replace('_', ' ')}</span></p>
             {order.assignedDate && (
-              <p>Fecha asignación: {formatDate(order.assignedDate)}</p>
+              <p>Fecha asignación: {formatInvoiceDate(order.assignedDate)}</p>
             )}
           </div>
         </div>

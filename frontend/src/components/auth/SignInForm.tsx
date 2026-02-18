@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate} from "react-router";
+import { Link, useNavigate } from "react-router";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import { useAuth } from "../../context/AuthContext";
-import { LoginUseCase } from "../../application/use-cases/auth/LoginUseCase";
-import { authRepository } from "../../infrastructure/repositories/AuthRepository";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -22,20 +20,9 @@ export default function SignInForm() {
     setError("");
 
     try {
-      // Usar el caso de uso de login (nueva arquitectura)
-      const loginUseCase = new LoginUseCase(authRepository);
-      const { user: loggedInUser, token } = await loginUseCase.execute({
-        username,
-        password,
-      });
-      
-      // Actualizar el contexto de autenticación
-      login(loggedInUser, token);
-      
-      // Navegar al dashboard
+      await login(username, password);
       navigate("/admin");
     } catch (err) {
-      console.error("Login error:", err);
       setError(err instanceof Error ? err.message : "Invalid username or password");
     } finally {
       setIsLoading(false);

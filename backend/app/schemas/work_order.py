@@ -1,13 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.enums import ServiceTypeEnum, WorkOrderStatusEnum
 from app.schemas.user import UserOut
 from app.schemas.client import ClientOut
 from app.schemas.product import ProductOut
-from app.schemas.user import UserOut
 
 
 class WorkOrderBase(BaseModel):
@@ -30,11 +29,10 @@ class WorkOrderCreate(WorkOrderBase):
 
 
 class WorkOrderOut(WorkOrderBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     received_date: datetime
-
-    class Config:
-        orm_mode = True
 
 
 class WorkOrderStatusUpdate(BaseModel):
@@ -67,14 +65,13 @@ class WorkOrderHistoryCreate(WorkOrderHistoryBase):
 
 
 class WorkOrderHistoryOut(WorkOrderHistoryBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     work_order_id: int
     user_id: Optional[int] = None
     user: Optional[UserOut] = None
     created_at: datetime
-
-    class Config:
-        orm_mode = True
 
 
 class WorkOrderPartBase(BaseModel):
@@ -89,22 +86,20 @@ class WorkOrderPartCreate(WorkOrderPartBase):
 
 
 class WorkOrderPartOut(WorkOrderPartBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     work_order_id: int
     created_by: Optional[int] = None
     user: Optional[UserOut] = None
     created_at: datetime
 
-    class Config:
-        orm_mode = True
-
 
 class WorkOrderDetail(WorkOrderOut):
+    model_config = ConfigDict(from_attributes=True)
+
     client: Optional[ClientOut] = None
     product: Optional[ProductOut] = None
     technician: Optional[UserOut] = None
     history: List[WorkOrderHistoryOut] = Field(default_factory=list)
     parts: List[WorkOrderPartOut] = Field(default_factory=list)
-
-    class Config:
-        orm_mode = True

@@ -11,8 +11,7 @@ export default function Clients() {
 
   useEffect(() => {
     loadClients();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadClients]);
 
   const filteredClients = useMemo(() => {
     if (!searchTerm.trim()) return clients;

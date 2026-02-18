@@ -51,8 +51,7 @@ export default function NewProduct() {
   useEffect(() => {
     loadClients();
     loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadClients, loadProducts]);
 
   // Cargar opciones de marcas desde productos existentes
   useEffect(() => {
@@ -84,7 +83,6 @@ export default function NewProduct() {
           client.documentNumber.toLowerCase().includes(docNumber.toLowerCase())
         );
 
-        console.log('Clientes encontrados:', matchingClients.length, 'para búsqueda:', docNumber);
 
         if (matchingClients.length === 1) {
           const client = matchingClients[0];
@@ -147,7 +145,6 @@ export default function NewProduct() {
           product.serialNumber.toLowerCase().includes(serialNumber.toLowerCase())
         );
 
-        console.log('Productos encontrados:', matchingProducts.length, 'para búsqueda:', serialNumber);
 
         if (matchingProducts.length === 1) {
           const product = matchingProducts[0];

@@ -3,8 +3,7 @@ import type { User } from '../../domain/entities/User';
 import { apiClient } from '../http/ApiClient';
 import { storageAdapter } from '../storage/LocalStorageAdapter';
 import { UserMapper } from '../../application/mappers/UserMapper';
-
-const TOKEN_KEY = 'access_token';
+import { AUTH_TOKEN_KEY } from '../auth/constants';
 
 /**
  * Implementación del repositorio de autenticación
@@ -23,7 +22,7 @@ export class AuthRepository implements IAuthRepository {
 
     // Guardar token en almacenamiento local
     if (response.access_token) {
-      storageAdapter.setItem(TOKEN_KEY, response.access_token);
+      storageAdapter.setItem(AUTH_TOKEN_KEY, response.access_token);
     }
 
     return response;
@@ -35,11 +34,11 @@ export class AuthRepository implements IAuthRepository {
   }
 
   logout(): void {
-    storageAdapter.removeItem(TOKEN_KEY);
+    storageAdapter.removeItem(AUTH_TOKEN_KEY);
   }
 
   isAuthenticated(): boolean {
-    return storageAdapter.hasItem(TOKEN_KEY);
+    return storageAdapter.hasItem(AUTH_TOKEN_KEY);
   }
 
   async updateProfile(updates: { username?: string; email?: string; password?: string }): Promise<User> {

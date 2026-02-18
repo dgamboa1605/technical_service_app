@@ -5,12 +5,13 @@ import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import { useAuth } from "../../context/AuthContext";
+import { useRepositories } from "../../context/RepositoriesContext";
 import { UpdateProfileUseCase } from "../../application/use-cases/auth/UpdateProfileUseCase";
-import { authRepository } from "../../infrastructure/repositories/AuthRepository";
 
 export default function UserInfoCard() {
+  const { authRepository } = useRepositories();
   const { isOpen, openModal, closeModal } = useModal();
-  const { user, login } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     username: user?.username || "",
@@ -74,8 +75,8 @@ export default function UserInfoCard() {
       
       const updatedUser = await updateProfileUseCase.execute(updates);
       
-      // Actualizar el usuario en el contexto con los datos actualizados
-      login(updatedUser, localStorage.getItem('access_token') || '');
+      // Actualizar el usuario en el contexto (el token no cambia)
+      refreshUser(updatedUser);
       
       // Forzar actualización del formData con los nuevos valores
       setFormData({

@@ -26,6 +26,7 @@ import UserProfiles from "./pages/UserProfiles";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/common/ProtectedRoute";
 import { RoleProtectedRoute } from "./components/common/RoleProtectedRoute";
+import { USER_ROLES } from "./domain/constants";
 
 export default function App() {
   return (
@@ -60,52 +61,52 @@ export default function App() {
             
             {/* Rutas solo para administradores */}
             <Route path="orders/new" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <NewWorkOrder />
               </RoleProtectedRoute>
             } />
             <Route path="clients" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <Clients />
               </RoleProtectedRoute>
             } />
             <Route path="clients/new" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <NewClient />
               </RoleProtectedRoute>
             } />
             <Route path="clients/:id" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <ClientDetail />
               </RoleProtectedRoute>
             } />
             <Route path="products" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <Products />
               </RoleProtectedRoute>
             } />
             <Route path="products/new" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <NewProduct />
               </RoleProtectedRoute>
             } />
             <Route path="products/:id" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <ProductDetail />
               </RoleProtectedRoute>
             } />
             <Route path="users" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <UserManagement />
               </RoleProtectedRoute>
             } />
             <Route path="users/new" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <NewUser />
               </RoleProtectedRoute>
             } />
             <Route path="users/:id" element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                 <UserDetail />
               </RoleProtectedRoute>
             } />

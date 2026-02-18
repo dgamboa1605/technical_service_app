@@ -4,6 +4,7 @@ import { Dropdown } from "../ui/dropdown/Dropdown";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import { USER_ROLES } from "../../domain/constants";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -173,7 +174,7 @@ export default function UserDropdown() {
                 Dashboard
               </button>
             </li>
-            {user?.role === 'admin' && (
+            {user?.role === USER_ROLES.ADMIN && (
               <>
                 <li>
                   <DropdownItem
