@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { productsApi, clientsApi, type Client, type Product } from "../../services/api";
+import { useClients } from "../../presentation/hooks/useClients";
+import { useProducts } from "../../presentation/hooks/useProducts";
+import type { Client } from "../../domain/entities/Client";
+import type { Product } from "../../domain/entities/Product";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import flatpickr from "flatpickr";
@@ -37,31 +40,27 @@ export default function NewProduct() {
   });
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [guaranteeBrandOptions, setGuaranteeBrandOptions] = useState<string[]>([]);
-  const [brandLoading, setBrandLoading] = useState(false);
-  const [brandError, setBrandError] = useState("");
   const purchaseDateRef = useRef<HTMLInputElement | null>(null);
   const purchaseDatePicker = useRef<flatpickr.Instance | null>(null);
 
+  // Hooks de la nueva arquitectura
+  const { clients, loadClients, createClient } = useClients();
+  const { products, loadProducts, createProduct } = useProducts();
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadClients();
+    loadProducts();
+  }, [loadClients, loadProducts]);
+
   // Cargar opciones de marcas desde productos existentes
   useEffect(() => {
-    const loadBrandOptions = async () => {
-      setBrandLoading(true);
-      setBrandError("");
-      try {
-        const products = await productsApi.getAll();
-        const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
-        setBrandOptions(unique(products.map((p) => p.brand)));
-        setGuaranteeBrandOptions(unique(products.map((p) => p.guaranteeing_brand || "")));
-      } catch (err) {
-        console.error("Error cargando marcas", err);
-        setBrandError("No se pudieron cargar las marcas, use el campo manual.");
-      } finally {
-        setBrandLoading(false);
-      }
-    };
-
-    loadBrandOptions();
-  }, []);
+    if (products.length > 0) {
+      const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
+      setBrandOptions(unique(products.map((p) => p.brand)));
+      setGuaranteeBrandOptions(unique(products.map((p) => p.guaranteeingBrand || "")));
+    }
+  }, [products]);
 
   // Búsqueda automática de cliente con debounce
   useEffect(() => {
@@ -77,21 +76,19 @@ export default function NewProduct() {
 
     setIsSearchingClient(true);
     
-    const timeoutId = setTimeout(async () => {
+    const timeoutId = setTimeout(() => {
       try {
-        const allClients = await clientsApi.getAll();
-        const matchingClients = allClients.filter(client => 
-          client.document_number && 
-          client.document_number.toLowerCase().includes(docNumber.toLowerCase())
+        const matchingClients = clients.filter(client => 
+          client.documentNumber && 
+          client.documentNumber.toLowerCase().includes(docNumber.toLowerCase())
         );
 
-        console.log('Clientes encontrados:', matchingClients.length, 'para búsqueda:', docNumber);
 
         if (matchingClients.length === 1) {
           const client = matchingClients[0];
           setSelectedClient(client);
           setClientForm({
-            document_number: client.document_number || "",
+            document_number: client.documentNumber || "",
             name: client.name || "",
             phone: client.phone || "",
             address: client.address || "",
@@ -141,28 +138,26 @@ export default function NewProduct() {
 
     setIsSearchingProduct(true);
     
-    const timeoutId = setTimeout(async () => {
+    const timeoutId = setTimeout(() => {
       try {
-        const allProducts = await productsApi.getAll();
-        const matchingProducts = allProducts.filter(product => 
-          product.serial_number && 
-          product.serial_number.toLowerCase().includes(serialNumber.toLowerCase())
+        const matchingProducts = products.filter(product => 
+          product.serialNumber && 
+          product.serialNumber.toLowerCase().includes(serialNumber.toLowerCase())
         );
 
-        console.log('Productos encontrados:', matchingProducts.length, 'para búsqueda:', serialNumber);
 
         if (matchingProducts.length === 1) {
           const product = matchingProducts[0];
           setSelectedProduct(product);
           setFormData({
-            item_type: product.item_type || "",
+            item_type: product.itemType || "",
             brandSelection: product.brand || "",
             brandCustom: "",
-            guaranteeingBrandSelection: product.guaranteeing_brand || "",
+            guaranteeingBrandSelection: product.guaranteeingBrand || "",
             guaranteeingBrandCustom: "",
             model: product.model || "",
-            serial_number: product.serial_number || "",
-            purchase_date: product.purchase_date || "",
+            serial_number: product.serialNumber || "",
+            purchase_date: product.purchaseDate || "",
             warranty: product.warranty || false,
           });
           setProductSearchResults([]);
@@ -234,7 +229,7 @@ export default function NewProduct() {
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
     setClientForm({
-      document_number: client.document_number || "",
+      document_number: client.documentNumber || "",
       name: client.name || "",
       phone: client.phone || "",
       address: client.address || "",
@@ -247,14 +242,14 @@ export default function NewProduct() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setFormData({
-      item_type: product.item_type || "",
+      item_type: product.itemType || "",
       brandSelection: product.brand || "",
       brandCustom: "",
-      guaranteeingBrandSelection: product.guaranteeing_brand || "",
+      guaranteeingBrandSelection: product.guaranteeingBrand || "",
       guaranteeingBrandCustom: "",
       model: product.model || "",
-      serial_number: product.serial_number || "",
-      purchase_date: product.purchase_date || "",
+      serial_number: product.serialNumber || "",
+      purchase_date: product.purchaseDate || "",
       warranty: product.warranty || false,
     });
     setProductSearchResults([]);
@@ -321,16 +316,17 @@ export default function NewProduct() {
 
       // Crear o actualizar cliente
       if (selectedClient) {
-        await clientsApi.update(selectedClient.id, {
+        const { clientRepository } = require("../../infrastructure/repositories/ClientRepository");
+        const updated = await clientRepository.update(selectedClient.id, {
           document_number: clientForm.document_number.trim(),
           name: clientForm.name.trim(),
           phone: clientForm.phone.trim(),
           address: clientForm.address.trim() || undefined,
           email: clientForm.email.trim() || undefined,
         });
-        clientId = selectedClient.id;
+        clientId = updated.id;
       } else {
-        const created = await clientsApi.create({
+        const created = await createClient({
           document_number: clientForm.document_number.trim(),
           name: clientForm.name.trim(),
           phone: clientForm.phone.trim(),
@@ -349,7 +345,7 @@ export default function NewProduct() {
           : formData.guaranteeingBrandSelection.trim()
         : null;
 
-      const productData = {
+      await createProduct({
         item_type: formData.item_type.trim(),
         brand: resolvedBrand,
         guaranteeing_brand: resolvedGuaranteeBrand,
@@ -358,9 +354,7 @@ export default function NewProduct() {
         purchase_date: formData.warranty ? formData.purchase_date || null : null,
         warranty: formData.warranty,
         client_id: clientId,
-      };
-
-      await productsApi.create(productData);
+      });
       navigate("/admin/products");
     } catch (error: any) {
       setError(error.response?.data?.detail || "Error al crear el producto");
@@ -457,7 +451,7 @@ export default function NewProduct() {
                                   {client.name}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Doc: {client.document_number}
+                                  Doc: {client.documentNumber}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-500">
                                   Tel: {client.phone}
@@ -582,7 +576,7 @@ export default function NewProduct() {
                               {product.brand} - {product.model}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Serie: {product.serial_number}
+                              Serie: {product.serialNumber}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-500">
                               {product.warranty ? '✓ Con garantía' : 'Sin garantía'}
@@ -656,7 +650,6 @@ export default function NewProduct() {
                         disabled={!!selectedProduct}
                       />
                     )}
-                    {brandError && <p className="text-xs text-red-600">{brandError}</p>}
                   </div>
                 </div>
 
@@ -754,7 +747,6 @@ export default function NewProduct() {
                             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                           />
                         )}
-                        {brandLoading && <p className="text-xs text-gray-500">Cargando marcas...</p>}
                       </div>
                     </div>
 

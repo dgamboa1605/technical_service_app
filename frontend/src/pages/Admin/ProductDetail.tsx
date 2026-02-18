@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { productsApi, type Product } from "../../services/api";
+import { useRepositories } from "../../context/RepositoriesContext";
+import type { Product } from "../../domain/entities/Product";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
 
 export default function ProductDetail() {
+  const { productRepository } = useRepositories();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
@@ -82,18 +84,22 @@ export default function ProductDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await productsApi.getById(productId);
-      setProduct(data);
-      setFormData({
-        item_type: data.item_type || "",
-        brand: data.brand || "",
-        guaranteeing_brand: data.guaranteeing_brand || "",
-        model: data.model || "",
-        serial_number: data.serial_number || "",
-        purchase_date: data.purchase_date || "",
-        warranty: data.warranty || false,
-        client_id: data.client_id || 0,
-      });
+      const data = await productRepository.getById(productId);
+      if (data) {
+        setProduct(data);
+        setFormData({
+          item_type: data.itemType || "",
+          brand: data.brand || "",
+          guaranteeing_brand: data.guaranteeingBrand || "",
+          model: data.model || "",
+          serial_number: data.serialNumber || "",
+          purchase_date: data.purchaseDate || "",
+          warranty: data.warranty || false,
+          client_id: data.clientId || 0,
+        });
+      } else {
+        setError('Producto no encontrado');
+      }
     } catch (error: any) {
       const errorMsg = error.response?.status === 404 
         ? 'Producto no encontrado' 
@@ -128,11 +134,11 @@ export default function ProductDetail() {
         client_id: formData.client_id,
       };
 
-      await productsApi.update(product.id, updateData);
+      await productRepository.update(product.id, updateData);
       setIsEditing(false);
       loadProduct(product.id);
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Error al actualizar el producto');
+      setError(error instanceof Error ? error.message : 'Error al actualizar el producto');
     } finally {
       setIsLoading(false);
     }
@@ -144,10 +150,10 @@ export default function ProductDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      await productsApi.delete(product.id);
+      await productRepository.delete(product.id);
       navigate('/admin/products');
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Error al eliminar el producto');
+      setError(error instanceof Error ? error.message : 'Error al eliminar el producto');
       setIsLoading(false);
     }
   };
@@ -199,7 +205,7 @@ export default function ProductDetail() {
 
   return (
     <>
-      <PageMeta title={`Producto: ${product.item_type} ${product.brand}`} description="Detalles del producto" />
+      <PageMeta title={`Producto: ${product.itemType} ${product.getDisplayName()}`} description="Detalles del producto" />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -231,7 +237,7 @@ export default function ProductDetail() {
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                {product.item_type} {product.brand}
+                {product.itemType} {product.getDisplayName()}
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Producto #{product.id} - {product.model}
@@ -289,7 +295,7 @@ export default function ProductDetail() {
                       <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
                         Tipo de Producto
                       </label>
-                      <div className="text-base font-semibold text-gray-900 dark:text-white">{product.item_type}</div>
+                      <div className="text-base font-semibold text-gray-900 dark:text-white">{product.itemType}</div>
                     </div>
                   </div>
 
@@ -334,7 +340,7 @@ export default function ProductDetail() {
                       <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
                         Número de Serie
                       </label>
-                      <div className="text-base font-semibold text-gray-900 dark:text-white">{product.serial_number}</div>
+                      <div className="text-base font-semibold text-gray-900 dark:text-white">{product.serialNumber}</div>
                     </div>
                   </div>
 
@@ -350,7 +356,7 @@ export default function ProductDetail() {
                         Marca Garantizante
                       </label>
                       <div className="text-base font-semibold text-gray-900 dark:text-white">
-                        {product.guaranteeing_brand || <span className="text-gray-400 italic">No especificado</span>}
+                        {product.guaranteeingBrand || <span className="text-gray-400 italic">No especificado</span>}
                       </div>
                     </div>
                   </div>
@@ -367,7 +373,7 @@ export default function ProductDetail() {
                         Fecha de Compra
                       </label>
                       <div className="text-base font-semibold text-gray-900 dark:text-white">
-                        {product.purchase_date ? new Date(product.purchase_date).toLocaleDateString('es-PE') : <span className="text-gray-400 italic">No especificada</span>}
+                        {product.purchaseDate ? new Date(product.purchaseDate).toLocaleDateString('es-PE') : <span className="text-gray-400 italic">No especificada</span>}
                       </div>
                     </div>
                   </div>
@@ -522,14 +528,14 @@ export default function ProductDetail() {
                       setIsEditing(false);
                       if (product) {
                         setFormData({
-                          item_type: product.item_type || "",
+                          item_type: product.itemType || "",
                           brand: product.brand || "",
-                          guaranteeing_brand: product.guaranteeing_brand || "",
+                          guaranteeing_brand: product.guaranteeingBrand || "",
                           model: product.model || "",
-                          serial_number: product.serial_number || "",
-                          purchase_date: product.purchase_date || "",
+                          serial_number: product.serialNumber || "",
+                          purchase_date: product.purchaseDate || "",
                           warranty: product.warranty || false,
-                          client_id: product.client_id || 0,
+                          client_id: product.clientId || 0,
                         });
                       }
                     }}

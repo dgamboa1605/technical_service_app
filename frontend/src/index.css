@@ -776,3 +776,18 @@ span.flatpickr-weekday,
 .simplebar-scrollbar.simplebar-visible:before {
   @apply opacity-100;
 }
+
+/* Fix para enlaces activos en el header - asegurar que el color sea visible en modo claro */
+nav a.active,
+nav a[aria-current="page"],
+header nav a.active,
+header nav a[aria-current="page"] {
+  color: #3730a3 !important; /* indigo-800 */
+}
+
+.dark nav a.active,
+.dark nav a[aria-current="page"],
+.dark header nav a.active,
+.dark header nav a[aria-current="page"] {
+  color: #a5b4fc !important; /* indigo-300 */
+}

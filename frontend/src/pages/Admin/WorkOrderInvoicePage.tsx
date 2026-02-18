@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { workOrdersApi, type WorkOrderDetail } from "../../services/api";
+import { useWorkOrders } from "../../presentation/hooks/useWorkOrders";
+import type { WorkOrder } from "../../domain/entities/WorkOrder";
 import WorkOrderInvoice from "../../components/work-order/WorkOrderInvoice";
 
 export default function WorkOrderInvoicePage() {
   const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<WorkOrderDetail | null>(null);
+  const { getWorkOrderById } = useWorkOrders();
+  const [order, setOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -13,12 +15,16 @@ export default function WorkOrderInvoicePage() {
     const loadOrder = async () => {
       if (!id) return;
       try {
-        const data = await workOrdersApi.getDetail(Number(id));
-        setOrder(data);
-        // Auto-print after loading
-        setTimeout(() => {
-          window.print();
-        }, 500);
+        const data = await getWorkOrderById(Number(id));
+        if (data) {
+          setOrder(data);
+          // Auto-print after loading
+          setTimeout(() => {
+            window.print();
+          }, 500);
+        } else {
+          setError("Orden no encontrada");
+        }
       } catch (err) {
         console.error(err);
         setError("No se pudo cargar la orden");
@@ -27,7 +33,7 @@ export default function WorkOrderInvoicePage() {
       }
     };
     loadOrder();
-  }, [id]);
+  }, [id, getWorkOrderById]);
 
   if (loading) {
     return (

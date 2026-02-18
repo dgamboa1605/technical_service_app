@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, cast
 
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.enums import ServiceTypeEnum, WorkOrderStatusEnum
+from app.domain.exceptions import NotFoundError
 from app.infrastructure.db.models.work_order import (
     WorkOrder,
     WorkOrderHistory,
@@ -24,7 +25,7 @@ ALLOWED_TRANSITIONS = {
 }
 
 
-def create_work_order(db: Session, data: dict, user_id: Optional[int] = None):
+def create_work_order(db: Session, data: dict, user_id: Optional[int] = None) -> WorkOrder:
     status = data.get("status") or WorkOrderStatusEnum.RECIBIDO
     service_type = data.get("service_type") or ServiceTypeEnum.TALLER
     work_order = WorkOrder(
@@ -58,12 +59,26 @@ def create_work_order(db: Session, data: dict, user_id: Optional[int] = None):
     return work_order
 
 
-def get_work_order(db: Session, work_order_id: int):
+def get_work_order(db: Session, work_order_id: int) -> Optional[WorkOrder]:
     return db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
 
 
-def get_work_order_detail(db: Session, work_order_id: int):
-    return (
+def get_work_order_or_raise(db: Session, work_order_id: int) -> WorkOrder:
+    """Return work order or raise NotFoundError. Use in API layer to avoid repeated 404 handling."""
+    work_order = get_work_order(db, work_order_id)
+    if not work_order:
+        raise NotFoundError("Work order not found")
+    return work_order
+
+
+def get_work_order_detail(
+    db: Session, work_order_id: int, hide_client: bool = False
+) -> Optional[WorkOrder]:
+    """
+    Load work order with relations. If hide_client is True, client is set to None
+    (for employee view). Caller is responsible for access control.
+    """
+    work_order = (
         db.query(WorkOrder)
         .options(
             selectinload(WorkOrder.client),
@@ -75,13 +90,26 @@ def get_work_order_detail(db: Session, work_order_id: int):
         .filter(WorkOrder.id == work_order_id)
         .first()
     )
+    if work_order and hide_client:
+        work_order.client = None
+    return work_order
 
 
-def get_work_orders(db: Session, skip: int = 0, limit: int = 100):
+def get_work_order_detail_or_raise(
+    db: Session, work_order_id: int, hide_client: bool = False
+) -> WorkOrder:
+    """Load work order detail or raise NotFoundError. Same semantics as get_work_order_detail."""
+    work_order = get_work_order_detail(db, work_order_id, hide_client=hide_client)
+    if not work_order:
+        raise NotFoundError("Work order not found")
+    return work_order
+
+
+def get_work_orders(db: Session, skip: int = 0, limit: int = 100) -> List[WorkOrder]:
     return db.query(WorkOrder).offset(skip).limit(limit).all()
 
 
-def get_work_orders_with_details(db: Session, skip: int = 0, limit: int = 100):
+def get_work_orders_with_details(db: Session, skip: int = 0, limit: int = 100) -> List[WorkOrder]:
     return (
         db.query(WorkOrder)
         .options(
@@ -97,18 +125,53 @@ def get_work_orders_with_details(db: Session, skip: int = 0, limit: int = 100):
     )
 
 
+def get_work_orders_with_details_for_employee(
+    db: Session, employee_id: int, skip: int = 0, limit: int = 100
+) -> List[WorkOrder]:
+    """
+    Obtiene órdenes con detalles para un empleado.
+    Employee solo ve órdenes asignadas a él o sin técnico asignado (en estado recibido/asignado).
+    Client data is hidden for employees (consistent with detail endpoint hide_client behavior).
+    """
+    from app.domain.enums import WorkOrderStatusEnum
+
+    work_orders = (
+        db.query(WorkOrder)
+        .options(
+            selectinload(WorkOrder.product),
+            selectinload(WorkOrder.technician),
+            selectinload(WorkOrder.history),
+            selectinload(WorkOrder.parts),
+        )
+        .filter(
+            (WorkOrder.technician_id == employee_id)
+            | (
+                (WorkOrder.technician_id.is_(None))
+                & (
+                    WorkOrder.status.in_(
+                        [WorkOrderStatusEnum.RECIBIDO, WorkOrderStatusEnum.ASIGNADO]
+                    )
+                )
+            )
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    for wo in work_orders:
+        wo.client = None
+    return work_orders
+
+
 def update_work_order_status(
     db: Session,
     work_order_id: int,
     new_status: WorkOrderStatusEnum,
     user_id: Optional[int] = None,
     note: Optional[str] = None,
-):
-    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
-    if not work_order:
-        return None
-
-    current_status = work_order.status
+) -> WorkOrder:
+    work_order = get_work_order_or_raise(db, work_order_id)
+    current_status = cast(WorkOrderStatusEnum, work_order.status)
     allowed = ALLOWED_TRANSITIONS.get(current_status, [])
     if new_status not in allowed:
         raise ValueError(
@@ -132,11 +195,8 @@ def update_work_order_status(
 
 def update_technical_report(
     db: Session, work_order_id: int, technical_report: str
-):
-    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
-    if not work_order:
-        return None
-
+) -> WorkOrder:
+    work_order = get_work_order_or_raise(db, work_order_id)
     work_order.technical_report = technical_report
     db.commit()
     db.refresh(work_order)
@@ -148,16 +208,15 @@ def assign_technician(
     work_order_id: int,
     technician_id: int,
     user_id: Optional[int] = None,
-):
+) -> WorkOrder:
     """
     Asigna un técnico a una orden de trabajo.
     Si la orden está en estado RECIBIDO, automáticamente la cambia a ASIGNADO.
+    Raises NotFoundError if work order does not exist.
     """
     from datetime import datetime
-    
-    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
-    if not work_order:
-        return None
+
+    work_order = get_work_order_or_raise(db, work_order_id)
 
     # Guardar el estado anterior para el historial
     previous_status = work_order.status
@@ -187,11 +246,8 @@ def assign_technician(
 
 def add_work_order_part(
     db: Session, work_order_id: int, part_data: dict, user_id: Optional[int] = None
-):
-    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
-    if not work_order:
-        return None
-
+) -> WorkOrderPart:
+    get_work_order_or_raise(db, work_order_id)  # ensure exists
     qty = part_data.get("qty", 1)
     unit_price = part_data.get("unit_price", 0)
     total = part_data.get("total")
@@ -214,11 +270,8 @@ def add_work_order_part(
 
 def add_history_entry(
     db: Session, work_order_id: int, history_data: dict, user_id: Optional[int] = None
-):
-    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
-    if not work_order:
-        return None
-
+) -> WorkOrderHistory:
+    get_work_order_or_raise(db, work_order_id)  # ensure exists
     entry = WorkOrderHistory(
         work_order_id=work_order_id,
         user_id=user_id,
@@ -232,12 +285,9 @@ def add_history_entry(
     return entry
 
 
-def update_labor_cost(db: Session, work_order_id: int, labor_cost: float):
-    """Actualizar el costo de mano de obra/servicio"""
-    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
-    if not work_order:
-        return None
-    
+def update_labor_cost(db: Session, work_order_id: int, labor_cost: float) -> WorkOrder:
+    """Actualizar el costo de mano de obra/servicio. Raises NotFoundError if work order does not exist."""
+    work_order = get_work_order_or_raise(db, work_order_id)
     work_order.labor_cost = labor_cost
     db.commit()
     db.refresh(work_order)

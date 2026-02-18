@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { clientsApi, type Client } from "../../services/api";
+import { useRepositories } from "../../context/RepositoriesContext";
+import type { Client } from "../../domain/entities/Client";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function ClientDetail() {
+  const { clientRepository } = useRepositories();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);
@@ -40,15 +42,19 @@ export default function ClientDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await clientsApi.getById(clientId);
-      setClient(data);
-      setFormData({
-        document_number: data.document_number || "",
-        name: data.name || "",
-        phone: data.phone || "",
-        email: data.email || "",
-        address: data.address || "",
-      });
+      const data = await clientRepository.getById(clientId);
+      if (data) {
+        setClient(data);
+        setFormData({
+          document_number: data.documentNumber || "",
+          name: data.name || "",
+          phone: data.phone || "",
+          email: data.email || "",
+          address: data.address || "",
+        });
+      } else {
+        setError('Cliente no encontrado');
+      }
     } catch (error: any) {
       const errorMsg = error.response?.status === 404 
         ? 'Cliente no encontrado' 
@@ -80,11 +86,11 @@ export default function ClientDetail() {
         address: formData.address.trim() || undefined,
       };
 
-      await clientsApi.update(client.id, updateData);
+      await clientRepository.update(client.id, updateData);
       setIsEditing(false);
       loadClient(client.id);
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Error al actualizar el cliente');
+      setError(error instanceof Error ? error.message : 'Error al actualizar el cliente');
     } finally {
       setIsLoading(false);
     }
@@ -96,10 +102,10 @@ export default function ClientDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      await clientsApi.delete(client.id);
+      await clientRepository.delete(client.id);
       navigate('/admin/clients');
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Error al eliminar el cliente');
+      setError(error instanceof Error ? error.message : 'Error al eliminar el cliente');
       setIsLoading(false);
     }
   };
@@ -257,7 +263,7 @@ export default function ClientDetail() {
                         Documento
                       </label>
                       <div className="text-base font-semibold text-gray-900 dark:text-white">
-                        {client.document_number || <span className="text-gray-400 italic">No registrado</span>}
+                        {client.documentNumber || <span className="text-gray-400 italic">No registrado</span>}
                       </div>
                     </div>
                   </div>
@@ -407,7 +413,7 @@ export default function ClientDetail() {
                     onClick={() => {
                       setIsEditing(false);
                       setFormData({
-                        document_number: client.document_number || "",
+                        document_number: client.documentNumber || "",
                         name: client.name || "",
                         phone: client.phone || "",
                         email: client.email || "",

@@ -19,6 +19,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isLoggedIn) {
+    // Redirigir a la página principal cuando no hay sesión
     return <Navigate to="/" replace />;
   }
 

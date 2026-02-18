@@ -22,8 +22,11 @@ import NewUser from "./pages/Admin/NewUser";
 import UserDetail from "./pages/Admin/UserDetail";
 import WorkOrderDetailPage from "./pages/Admin/WorkOrderDetail";
 import WorkOrderInvoicePage from "./pages/Admin/WorkOrderInvoicePage";
+import UserProfiles from "./pages/UserProfiles";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/common/ProtectedRoute";
+import { RoleProtectedRoute } from "./components/common/RoleProtectedRoute";
+import { USER_ROLES } from "./domain/constants";
 
 export default function App() {
   return (
@@ -42,30 +45,71 @@ export default function App() {
 
           {/* Auth Layout */}
           <Route path="/signin" element={<SignIn />} />
-          {/* <Route path="/signup" element={<SignUp />} /> */}
 
           {/* Rutas Administrativas - Solo para empleados/admin */}
-                    {/* Rutas protegidas para empleados y administradores */}
           <Route path="/admin/*" element={
             <ProtectedRoute>
               <AdminLayout />
             </ProtectedRoute>
           }>
+            {/* Rutas accesibles para todos los empleados */}
             <Route index element={<Dashboard />} />
+            <Route path="profile" element={<UserProfiles />} />
             <Route path="orders" element={<WorkOrders />} />
-            <Route path="orders/new" element={<NewWorkOrder />} />
             <Route path="orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="orders/:id/invoice" element={<WorkOrderInvoicePage />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="clients/new" element={<NewClient />} />
-            <Route path="clients/:id" element={<ClientDetail />} />
-            <Route path="products" element={<Products />} />
-            <Route path="products/new" element={<NewProduct />} />
-            <Route path="products/:id" element={<ProductDetail />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="users/new" element={<NewUser />} />
-            <Route path="users/:id" element={<UserDetail />} />
-            {/* Aquí se agregarán más rutas administrativas */}
+            
+            {/* Rutas solo para administradores */}
+            <Route path="orders/new" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <NewWorkOrder />
+              </RoleProtectedRoute>
+            } />
+            <Route path="clients" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <Clients />
+              </RoleProtectedRoute>
+            } />
+            <Route path="clients/new" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <NewClient />
+              </RoleProtectedRoute>
+            } />
+            <Route path="clients/:id" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <ClientDetail />
+              </RoleProtectedRoute>
+            } />
+            <Route path="products" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <Products />
+              </RoleProtectedRoute>
+            } />
+            <Route path="products/new" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <NewProduct />
+              </RoleProtectedRoute>
+            } />
+            <Route path="products/:id" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <ProductDetail />
+              </RoleProtectedRoute>
+            } />
+            <Route path="users" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <UserManagement />
+              </RoleProtectedRoute>
+            } />
+            <Route path="users/new" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <NewUser />
+              </RoleProtectedRoute>
+            } />
+            <Route path="users/:id" element={
+              <RoleProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                <UserDetail />
+              </RoleProtectedRoute>
+            } />
           </Route>
 
           {/* Fallback Route */}

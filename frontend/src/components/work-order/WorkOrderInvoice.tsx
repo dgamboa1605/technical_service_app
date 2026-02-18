@@ -1,20 +1,18 @@
-import type { WorkOrderDetail } from "../../services/api";
+import type { WorkOrder } from "../../domain/entities/WorkOrder";
+import { formatDateWithOptions } from "../../utils/date";
 
 interface WorkOrderInvoiceProps {
-  order: WorkOrderDetail;
+  order: WorkOrder;
+}
+
+function formatInvoiceDate(date: string | null | undefined): string {
+  if (date == null || date === '') return '-';
+  return formatDateWithOptions(date, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
-  const partsTotal = order.parts.reduce((sum, p) => sum + p.total, 0);
-  const grandTotal = partsTotal + (order.labor_cost || 0);
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  const partsTotal = order.parts?.reduce((sum, p) => sum + p.total, 0) || 0;
+  const grandTotal = partsTotal + (order.laborCost || 0);
 
   return (
     <div className="bg-white p-8 dark:bg-gray-800 print:bg-white print:p-8">
@@ -27,7 +25,7 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-gray-900 dark:text-white print:text-gray-900">#{order.id}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 print:text-gray-600">{formatDate(order.received_date)}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 print:text-gray-600">{formatInvoiceDate(order.receivedDate)}</p>
           </div>
         </div>
       </div>
@@ -38,7 +36,7 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2 border-b pb-1 print:text-gray-700">Datos del Cliente</h2>
           <div className="text-sm text-gray-900 dark:text-gray-200 space-y-1 print:text-gray-900">
             <p className="font-bold">{order.client?.name}</p>
-            <p>Doc: {order.client?.document_number || 'N/A'}</p>
+            <p>Doc: {order.client?.documentNumber || 'N/A'}</p>
             <p>Tel: {order.client?.phone}</p>
             {order.client?.email && <p>Email: {order.client.email}</p>}
             {order.client?.address && <p>Dir: {order.client.address}</p>}
@@ -48,10 +46,10 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2 border-b pb-1 print:text-gray-700">Datos del Equipo</h2>
           <div className="text-sm text-gray-900 dark:text-gray-200 space-y-1 print:text-gray-900">
             <p className="font-bold">
-              {order.product?.item_type} {order.product?.brand}
+              {order.product?.itemType} {order.product?.getDisplayName()}
             </p>
             <p>{order.product?.model}</p>
-            <p>Serie: {order.product?.serial_number}</p>
+            <p>Serie: {order.product?.serialNumber}</p>
             {order.product?.warranty && (
               <p className="font-semibold">✓ CON GARANTÍA</p>
             )}
@@ -61,19 +59,19 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
       </div>
 
       {/* Problem Description */}
-      {order.customer_instructions && (
+      {order.customerInstructions && (
         <div className="mb-4 border-l-4 border-gray-600 bg-gray-50 dark:bg-gray-700 p-3 print:bg-gray-50 print:border-gray-600">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1 print:text-gray-700">Falla Reportada</h2>
-          <p className="text-sm text-gray-900 dark:text-gray-200 print:text-gray-900">{order.customer_instructions}</p>
+          <p className="text-sm text-gray-900 dark:text-gray-200 print:text-gray-900">{order.customerInstructions}</p>
         </div>
       )}
 
       {/* Technical Report */}
-      {order.technical_report && (
+      {order.technicalReport && (
         <div className="mb-6 border-l-4 border-gray-600 bg-gray-50 dark:bg-gray-700 p-3 print:bg-gray-50 print:border-gray-600">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1 print:text-gray-700">Informe Técnico</h2>
           <p className="text-sm text-gray-900 dark:text-gray-200 whitespace-pre-wrap print:text-gray-900">
-            {order.technical_report}
+            {order.technicalReport}
           </p>
         </div>
       )}
@@ -92,23 +90,23 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           </thead>
           <tbody>
             {/* Labor Cost */}
-            {order.labor_cost && order.labor_cost > 0 && (
+            {order.laborCost && order.laborCost > 0 && (
               <tr className="border-b border-gray-300 dark:border-gray-600 print:border-gray-300">
                 <td className="py-2 px-3 text-gray-900 dark:text-gray-200 print:text-gray-900">
                   <strong>Servicio de Reparación / Mano de Obra</strong>
                 </td>
                 <td className="text-center text-gray-900 dark:text-gray-200 print:text-gray-900">1</td>
-                <td className="text-right text-gray-900 dark:text-gray-200 print:text-gray-900">${order.labor_cost.toFixed(2)}</td>
-                <td className="text-right font-bold text-gray-900 dark:text-gray-200 print:text-gray-900">${order.labor_cost.toFixed(2)}</td>
+                <td className="text-right text-gray-900 dark:text-gray-200 print:text-gray-900">${order.laborCost.toFixed(2)}</td>
+                <td className="text-right font-bold text-gray-900 dark:text-gray-200 print:text-gray-900">${order.laborCost.toFixed(2)}</td>
               </tr>
             )}
             
             {/* Parts */}
-            {order.parts.map((part) => (
+            {order.parts?.map((part) => (
               <tr key={part.id} className="border-b border-gray-300 dark:border-gray-600 print:border-gray-300">
                 <td className="py-2 px-3 text-gray-900 dark:text-gray-200 print:text-gray-900">{part.description}</td>
                 <td className="text-center text-gray-900 dark:text-gray-200 print:text-gray-900">{part.qty}</td>
-                <td className="text-right text-gray-900 dark:text-gray-200 print:text-gray-900">${part.unit_price.toFixed(2)}</td>
+                <td className="text-right text-gray-900 dark:text-gray-200 print:text-gray-900">${part.unitPrice.toFixed(2)}</td>
                 <td className="text-right font-semibold text-gray-900 dark:text-gray-200 print:text-gray-900">${part.total.toFixed(2)}</td>
               </tr>
             ))}
@@ -135,8 +133,8 @@ export default function WorkOrderInvoice({ order }: WorkOrderInvoiceProps) {
           </div>
           <div className="text-right">
             <p className="mb-2">Estado: <span className="font-semibold uppercase">{order.status.replace('_', ' ')}</span></p>
-            {order.assigned_date && (
-              <p>Fecha asignación: {formatDate(order.assigned_date)}</p>
+            {order.assignedDate && (
+              <p>Fecha asignación: {formatInvoiceDate(order.assignedDate)}</p>
             )}
           </div>
         </div>

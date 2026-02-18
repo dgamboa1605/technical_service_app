@@ -2,6 +2,9 @@
 
 import type React from "react";
 import { createContext, useState, useContext, useEffect } from "react";
+import { storageAdapter } from "../infrastructure/storage/LocalStorageAdapter";
+
+const THEME_STORAGE_KEY = "theme";
 
 type Theme = "light" | "dark";
 
@@ -19,17 +22,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // This code will only run on the client side
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    const initialTheme = savedTheme || "light"; // Default to light theme
-
+    const savedTheme = storageAdapter.getItem(THEME_STORAGE_KEY) as Theme | null;
+    const initialTheme = (savedTheme === "light" || savedTheme === "dark" ? savedTheme : null) || "light";
     setTheme(initialTheme);
     setIsInitialized(true);
   }, []);
 
   useEffect(() => {
     if (isInitialized) {
-      localStorage.setItem("theme", theme);
+      storageAdapter.setItem(THEME_STORAGE_KEY, theme);
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
       } else {

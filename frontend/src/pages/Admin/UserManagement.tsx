@@ -1,31 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
-import { usersApi, type User } from "../../services/api";
+import { useUsers } from "../../presentation/hooks/useUsers";
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { users, isLoading, error, loadUsers } = useUsers();
 
   // Cargar usuarios
   useEffect(() => {
     loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
-    try {
-      setIsLoading(true);
-      const usersData = await usersApi.getAll();
-      setUsers(usersData);
-    } catch (error) {
-      console.error('Error loading users:', error);
-      setError("Error cargando usuarios. Intente nuevamente.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadUsers]);
 
   const getRoleBadge = (role: string) => {
     const roleConfig = {
@@ -47,14 +32,14 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="w-full">
       <PageBreadCrumb pageTitle="Usuarios" />
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
           Gestión de Usuarios
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Administra los usuarios del sistema y sus roles.
         </p>
       </div>
@@ -69,14 +54,14 @@ export default function UserManagement() {
       {/* Nueva Usuario Section */}
       <div className="mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 Lista de Usuarios
               </h2>
               <button
                 onClick={() => navigate('/admin/users/new')}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -86,8 +71,8 @@ export default function UserManagement() {
             </div>
           </div>
 
-          {/* Tabla de usuarios */}
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
@@ -157,6 +142,67 @@ export default function UserManagement() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+            {isLoading ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                Cargando usuarios...
+              </div>
+            ) : users.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No se encontraron usuarios.
+              </div>
+            ) : (
+              users.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => navigate(`/admin/users/${user.id}`)}
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                        {user.username}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        ID: {user.id}
+                      </div>
+                    </div>
+                    {getRoleBadge(user.role)}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Email:</span>
+                      <span className="text-sm text-gray-900 dark:text-white text-right flex-1 break-words">
+                        {user.email}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/users/${user.id}`);
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                    >
+                      Ver
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/users/${user.id}`);
+                      }}
+                      className="text-xs text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                    >
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

@@ -36,7 +36,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">Teléfono</h3>
-                    <p className="text-gray-600 dark:text-gray-400">+51 999 999 999</p>
+                    <p className="text-gray-600 dark:text-gray-400">+591 67516771</p>
                     <p className="text-sm text-gray-500 dark:text-gray-500">Lun - Sáb: 9:00 AM - 7:00 PM</p>
                   </div>
                 </div>
@@ -50,7 +50,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">WhatsApp</h3>
-                    <p className="text-gray-600 dark:text-gray-400">+51 999 999 999</p>
+                    <p className="text-gray-600 dark:text-gray-400">+591 67516771</p>
                     <p className="text-sm text-gray-500 dark:text-gray-500">Respuesta rápida</p>
                   </div>
                 </div>
@@ -64,7 +64,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">Email</h3>
-                    <p className="text-gray-600 dark:text-gray-400">contacto@serviciotecnico.com</p>
+                    <p className="text-gray-600 dark:text-gray-400">techvel@gmail.com</p>
                     <p className="text-sm text-gray-500 dark:text-gray-500">Respuesta en 24 horas</p>
                   </div>
                 </div>
@@ -79,8 +79,8 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">Ubicación</h3>
-                    <p className="text-gray-600 dark:text-gray-400">Av. Principal 123</p>
-                    <p className="text-gray-600 dark:text-gray-400">Lima, Perú</p>
+                    <p className="text-gray-600 dark:text-gray-400">Av. Panamericana, zona sud</p>
+                    <p className="text-gray-600 dark:text-gray-400">Cochabamba, Bolivia</p>
                   </div>
                 </div>
               </div>
@@ -135,19 +135,19 @@ export default function Contact() {
                     <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>A una cuadra de la Plaza Principal</span>
+                    <span>A una cuadra de la Epi Sud</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Frente al Banco Nacional</span>
+                    <span>Frente a Techobol</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Cerca de la estación del Metro</span>
+                    <span>Cerca al Surtidor Huayna Kapac II</span>
                   </li>
                 </ul>
               </div>
@@ -155,7 +155,7 @@ export default function Contact() {
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Transporte Público:</h3>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Buses: Líneas 12, 25, 34 • Metro: Estación Centro
+                  Buses: Líneas 103, 135, 111, 35, Micro "A"
                 </p>
               </div>
             </div>

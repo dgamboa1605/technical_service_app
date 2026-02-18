@@ -1,78 +1,64 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { productsApi, type Product } from "../../services/api";
+import { useProducts } from "../../presentation/hooks/useProducts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function Products() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { products, isLoading, loadProducts } = useProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [loadProducts]);
 
-  const loadProducts = async () => {
-    setIsLoading(true);
-    try {
-      const data = await productsApi.getAll();
-      setProducts(data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filteredProducts = products.filter(product => {
-    if (!searchTerm.trim()) return true;
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return products;
     const term = searchTerm.toLowerCase();
-    return (
-      product.item_type?.toLowerCase().includes(term) ||
+    return products.filter(product => 
+      product.itemType?.toLowerCase().includes(term) ||
       product.brand?.toLowerCase().includes(term) ||
       product.model?.toLowerCase().includes(term) ||
-      product.serial_number?.toLowerCase().includes(term)
+      product.serialNumber?.toLowerCase().includes(term)
     );
-  });
+  }, [products, searchTerm]);
 
   return (
     <>
       <PageMeta title="Gestión de Productos" description="Administra el inventario de productos" />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <PageBreadCrumb pageTitle="Productos" />
-          <div className="mb-4 mt-0">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+      <div className="w-full">
+        <PageBreadCrumb pageTitle="Productos" />
+        <div className="mb-4 sm:mb-6 mt-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
               Gestión de Productos
             </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Administra el inventario de productos
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <div className="flex-1">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar por tipo, marca, modelo o número de serie..."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
               <button
                 onClick={() => navigate("/admin/products/new")}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap text-sm sm:text-base"
               >
                 + Nuevo Producto
               </button>
             </div>
           </div>
 
-          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {isLoading ? (
               "Cargando..."
             ) : (
@@ -81,7 +67,8 @@ export default function Products() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -120,7 +107,7 @@ export default function Products() {
                       <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {product.item_type}
+                            {product.itemType}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -135,7 +122,7 @@ export default function Products() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {product.serial_number || "-"}
+                            {product.serialNumber || "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -152,8 +139,58 @@ export default function Products() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+              {isLoading ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Cargando productos...
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No se encontraron productos
+                </div>
+              ) : (
+                filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    onClick={() => navigate(`/admin/products/${product.id}`)}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                  >
+                    <div className="mb-3">
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                        {product.itemType}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Marca:</span>
+                        <span className="text-sm text-gray-900 dark:text-white text-right flex-1">
+                          {product.brand}
+                        </span>
+                      </div>
+                      {product.model && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Modelo:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1">
+                            {product.model}
+                          </span>
+                        </div>
+                      )}
+                      {product.serialNumber && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Número de Serie:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1 break-words">
+                            {product.serialNumber}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
       </div>
     </>
   );

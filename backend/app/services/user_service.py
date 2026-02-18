@@ -1,9 +1,10 @@
-from sqlalchemy.orm import Session
-from app.infrastructure.db.models.user import User
-from app.domain.enums import RoleEnum
-from passlib.context import CryptContext
+from typing import Optional
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from sqlalchemy.orm import Session
+
+from app.core.security import hash_password
+from app.domain.enums import RoleEnum
+from app.infrastructure.db.models.user import User
 
 
 def get_user_by_email(db: Session, email: str):
@@ -15,7 +16,7 @@ def get_user_by_username(db: Session, username: str):
 
 
 def create_user(db: Session, username: str, email: str, password: str, role: RoleEnum):
-    hashed_password = pwd_context.hash(password)
+    hashed_password = hash_password(password)
     user = User(
         username=username, email=email, hashed_password=hashed_password, role=role
     )
@@ -43,19 +44,26 @@ def get_technicians(db: Session, skip: int = 0, limit: int = 100):
     )
 
 
-def update_user(db: Session, user_id: int, username: str = None, email: str = None, password: str = None, role: RoleEnum = None):
+def update_user(
+    db: Session,
+    user_id: int,
+    username: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    role: Optional[RoleEnum] = None,
+) -> Optional[User]:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         return None
     
     if username is not None:
-        user.username = username
+        setattr(user, "username", username)
     if email is not None:
-        user.email = email
+        setattr(user, "email", email)
     if password is not None:
-        user.hashed_password = pwd_context.hash(password)
+        setattr(user, "hashed_password", hash_password(password))
     if role is not None:
-        user.role = role
+        setattr(user, "role", role)
     
     db.commit()
     db.refresh(user)

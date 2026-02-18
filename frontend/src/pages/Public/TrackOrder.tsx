@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { workOrdersApi, type WorkOrderDetail } from "../../services/api";
+import { useState, useMemo } from "react";
+import type { WorkOrder } from "../../domain/entities/WorkOrder";
+import { GetWorkOrderDetailUseCase, ConfirmWorkOrderUseCase } from "../../application";
+import { useRepositories } from "../../context/RepositoriesContext";
 
 const STATUS_LABEL: Record<string, string> = {
   recibido: "Recibido",
@@ -22,11 +24,15 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function TrackOrder() {
+  const { workOrderRepository } = useRepositories();
   const [orderNumber, setOrderNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [orderData, setOrderData] = useState<WorkOrderDetail | null>(null);
+  const [orderData, setOrderData] = useState<WorkOrder | null>(null);
   const [error, setError] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const getWorkOrderDetailUseCase = useMemo(() => new GetWorkOrderDetailUseCase(workOrderRepository), [workOrderRepository]);
+  const confirmWorkOrderUseCase = useMemo(() => new ConfirmWorkOrderUseCase(workOrderRepository), [workOrderRepository]);
 
   const handleConfirm = async () => {
     if (!orderData || orderData.status !== 'por_confirmar') return;
@@ -35,10 +41,12 @@ export default function TrackOrder() {
     setError("");
     
     try {
-      await workOrdersApi.confirmOrder(orderData.id);
+      await confirmWorkOrderUseCase.execute(orderData.id);
       // Recargar la orden
-      const updated = await workOrdersApi.getDetail(orderData.id);
-      setOrderData(updated);
+      const updated = await getWorkOrderDetailUseCase.execute(orderData.id);
+      if (updated) {
+        setOrderData(updated);
+      }
     } catch (err) {
       console.error('Error confirming order:', err);
       setError("No se pudo confirmar la orden. Intente nuevamente.");
@@ -62,8 +70,13 @@ export default function TrackOrder() {
     
     try {
       // Buscar la orden por ID con detalle completo
-      const workOrder = await workOrdersApi.getDetail(orderId);
-      setOrderData(workOrder);
+      const workOrder = await getWorkOrderDetailUseCase.execute(orderId);
+      if (workOrder) {
+        setOrderData(workOrder);
+      } else {
+        setError("No se encontró una orden con ese número. Verifique e intente nuevamente.");
+        setOrderData(null);
+      }
     } catch (err) {
       console.error('Error searching work order:', err);
       setError("No se encontró una orden con ese número. Verifique e intente nuevamente.");
@@ -144,9 +157,9 @@ export default function TrackOrder() {
               <div>
                 <h3 className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">Producto</h3>
                 <p className="text-gray-900 dark:text-white">
-                  {orderData.product ? `${orderData.product.item_type} ${orderData.product.brand} ${orderData.product.model}` : '-'}
+                  {orderData.product ? `${orderData.product.itemType} ${orderData.product.brand} ${orderData.product.model}` : '-'}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Serie: {orderData.product?.serial_number || '-'}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Serie: {orderData.product?.serialNumber || '-'}</p>
               </div>
               
               <div>
@@ -158,7 +171,7 @@ export default function TrackOrder() {
               <div>
                 <h3 className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Recepción</h3>
                 <p className="text-gray-900 dark:text-white">
-                  {orderData.received_date ? new Date(orderData.received_date).toLocaleDateString('es-ES') : '-'}
+                  {orderData.receivedDate ? new Date(orderData.receivedDate).toLocaleDateString('es-ES') : '-'}
                 </p>
               </div>
               
@@ -172,20 +185,20 @@ export default function TrackOrder() {
           </div>
 
           {/* Informe Técnico y Repuestos */}
-          {(orderData.technical_report || orderData.parts.length > 0 || (orderData.labor_cost && orderData.labor_cost > 0)) && (
+          {(orderData.technicalReport || (orderData.parts && orderData.parts.length > 0) || (orderData.laborCost && orderData.laborCost > 0)) && (
             <div className="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
-              {orderData.technical_report && (
+              {orderData.technicalReport && (
                 <div className="mb-6">
                   <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Informe Técnico</h3>
                   <div className="p-4 bg-gray-50 rounded dark:bg-gray-700">
                     <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                      {orderData.technical_report}
+                      {orderData.technicalReport}
                     </p>
                   </div>
                 </div>
               )}
 
-              {(orderData.labor_cost && orderData.labor_cost > 0) || orderData.parts.length > 0 ? (
+              {(orderData.laborCost && orderData.laborCost > 0) || (orderData.parts && orderData.parts.length > 0) ? (
                 <div>
                   <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Costos del Servicio</h3>
                   <div className="overflow-x-auto">
@@ -199,23 +212,23 @@ export default function TrackOrder() {
                         </tr>
                       </thead>
                       <tbody>
-                        {orderData.labor_cost && orderData.labor_cost > 0 && (
+                        {orderData.laborCost && orderData.laborCost > 0 && (
                           <tr className="border-b dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
                             <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">Servicio de Reparación / Mano de Obra</td>
                             <td className="px-4 py-2 text-right text-gray-900 dark:text-white">1</td>
-                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">${orderData.labor_cost.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">${orderData.laborCost.toFixed(2)}</td>
                             <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">
-                              ${orderData.labor_cost.toFixed(2)}
+                              ${orderData.laborCost.toFixed(2)}
                             </td>
                           </tr>
                         )}
-                        {orderData.parts.map((part) => (
+                        {orderData.parts && orderData.parts.map((part) => (
                           <tr key={part.id} className="border-b dark:border-gray-700">
                             <td className="px-4 py-2 text-gray-900 dark:text-white">{part.description}</td>
                             <td className="px-4 py-2 text-right text-gray-900 dark:text-white">{part.qty}</td>
-                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">${part.unit_price.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-right text-gray-900 dark:text-white">${part.unitPrice.toFixed(2)}</td>
                             <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">
-                              ${(part.qty * part.unit_price).toFixed(2)}
+                              ${(part.qty * part.unitPrice).toFixed(2)}
                             </td>
                           </tr>
                         ))}
@@ -223,8 +236,8 @@ export default function TrackOrder() {
                           <td colSpan={3} className="px-4 py-3 text-right text-gray-900 dark:text-white text-base">TOTAL:</td>
                           <td className="px-4 py-3 text-right text-gray-900 dark:text-white text-lg">
                             ${(
-                              (orderData.labor_cost || 0) + 
-                              orderData.parts.reduce((sum, p) => sum + (p.qty * p.unit_price), 0)
+                              (orderData.laborCost || 0) + 
+                              (orderData.parts ? orderData.parts.reduce((sum, p) => sum + (p.qty * p.unitPrice), 0) : 0)
                             ).toFixed(2)}
                           </td>
                         </tr>

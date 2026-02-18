@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { productsApi, type Product } from "../../services/api";
+import { useState, useEffect, useMemo } from "react";
+import type { Product } from "../../domain/entities/Product";
+import { GetAllProductsUseCase } from "../../application";
+import { useRepositories } from "../../context/RepositoriesContext";
 
 interface ProductSelectorProps {
   clientId: number | null;
@@ -8,10 +10,13 @@ interface ProductSelectorProps {
 }
 
 export default function ProductSelector({ clientId, onProductSelected, onNewProduct }: ProductSelectorProps) {
+  const { productRepository } = useRepositories();
   const [clientProducts, setClientProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const getAllProductsUseCase = useMemo(() => new GetAllProductsUseCase(productRepository), [productRepository]);
 
   useEffect(() => {
     if (clientId) {
@@ -20,15 +25,15 @@ export default function ProductSelector({ clientId, onProductSelected, onNewProd
       setClientProducts([]);
       setSelectedProduct(null);
     }
-  }, [clientId]);
+  }, [clientId, getAllProductsUseCase]);
 
   const loadClientProducts = async () => {
     if (!clientId) return;
     
     setIsLoading(true);
     try {
-      const allProducts = await productsApi.getAll();
-      const filtered = allProducts.filter(p => p.client_id === clientId);
+      const allProducts = await getAllProductsUseCase.execute();
+      const filtered = allProducts.filter(p => p.clientId === clientId);
       setClientProducts(filtered);
     } catch (error) {
       console.error("Error loading client products:", error);
@@ -89,7 +94,7 @@ export default function ProductSelector({ clientId, onProductSelected, onNewProd
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-60"
             >
               {selectedProduct ? (
-                <span>{selectedProduct.item_type} - {selectedProduct.brand} {selectedProduct.model}</span>
+                <span>{selectedProduct.itemType} - {selectedProduct.brand} {selectedProduct.model}</span>
               ) : (
                 <span className="text-gray-400">Seleccionar producto existente...</span>
               )}
@@ -119,10 +124,10 @@ export default function ProductSelector({ clientId, onProductSelected, onNewProd
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <div className="font-medium text-gray-900 dark:text-white">
-                          {product.item_type} - {product.brand}
+                          {product.itemType} - {product.brand}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Modelo: {product.model} | S/N: {product.serial_number}
+                          Modelo: {product.model} | S/N: {product.serialNumber}
                         </div>
                       </div>
                     </div>
@@ -158,17 +163,17 @@ export default function ProductSelector({ clientId, onProductSelected, onNewProd
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="font-semibold text-gray-900 dark:text-white">
-                {selectedProduct.item_type} - {selectedProduct.brand} {selectedProduct.model}
+                {selectedProduct.itemType} - {selectedProduct.brand} {selectedProduct.model}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mt-1">
-                <div>S/N: {selectedProduct.serial_number}</div>
+                <div>S/N: {selectedProduct.serialNumber}</div>
                 {selectedProduct.warranty && (
                   <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Con garantía
-                    {selectedProduct.guaranteeing_brand && ` - ${selectedProduct.guaranteeing_brand}`}
+                    {selectedProduct.guaranteeingBrand && ` - ${selectedProduct.guaranteeingBrand}`}
                   </div>
                 )}
               </div>

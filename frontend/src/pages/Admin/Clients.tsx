@@ -1,80 +1,67 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { clientsApi, type Client } from "../../services/api";
+import { useClients } from "../../presentation/hooks/useClients";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function Clients() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { clients, isLoading, loadClients } = useClients();
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     loadClients();
-  }, []);
+  }, [loadClients]);
 
-  const loadClients = async () => {
-    setIsLoading(true);
-    try {
-      const data = await clientsApi.getAll();
-      setClients(data);
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filteredClients = clients.filter(client => {
-    if (!searchTerm.trim()) return true;
+  const filteredClients = useMemo(() => {
+    if (!searchTerm.trim()) return clients;
     const term = searchTerm.toLowerCase();
-    return (
+    return clients.filter(client => 
       client.name?.toLowerCase().includes(term) ||
       client.phone?.toLowerCase().includes(term) ||
       client.email?.toLowerCase().includes(term) ||
-      client.document_number?.toLowerCase().includes(term)
+      client.documentNumber?.toLowerCase().includes(term)
     );
-  });
+  }, [clients, searchTerm]);
 
   return (
     <>
       <PageMeta title="Gestión de Clientes" description="Administra la información de tus clientes" />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full">
+        <div className="w-full">
           <PageBreadCrumb pageTitle="Clientes" />
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="w-full">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
               Gestión de Clientes
             </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Administra la información de tus clientes
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <div className="flex-1">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar por nombre, teléfono, email o documento..."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
               <button
                 onClick={() => navigate("/admin/clients/new")}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap text-sm sm:text-base"
               >
                 + Nuevo Cliente
               </button>
             </div>
           </div>
 
-          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {isLoading ? (
               "Cargando..."
             ) : (
@@ -83,7 +70,8 @@ export default function Clients() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -125,12 +113,12 @@ export default function Clients() {
                       <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {client.name}
+                            {client.getDisplayName()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {client.document_number || "-"}
+                            {client.documentNumber || "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -161,6 +149,67 @@ export default function Clients() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+              {isLoading ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Cargando clientes...
+                </div>
+              ) : filteredClients.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No se encontraron clientes
+                </div>
+              ) : (
+                filteredClients.map((client) => (
+                  <div
+                    key={client.id}
+                    onClick={() => navigate(`/admin/clients/${client.id}`)}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                  >
+                    <div className="mb-3">
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        {client.getDisplayName()}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {client.documentNumber && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Documento:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1">
+                            {client.documentNumber}
+                          </span>
+                        </div>
+                      )}
+                      {client.phone && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Teléfono:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1">
+                            {client.phone}
+                          </span>
+                        </div>
+                      )}
+                      {client.email && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Email:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1 break-words">
+                            {client.email}
+                          </span>
+                        </div>
+                      )}
+                      {client.address && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Dirección:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right flex-1 break-words">
+                            {client.address}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

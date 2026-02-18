@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { usersApi, type User } from "../../services/api";
+import { useRepositories } from "../../context/RepositoriesContext";
+import type { User } from "../../domain/entities/User";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 
 export default function UserDetail() {
+  const { userRepository } = useRepositories();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
@@ -40,15 +42,19 @@ export default function UserDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await usersApi.getById(userId);
-      setUser(data);
-      setFormData({
-        username: data.username || "",
-        email: data.email || "",
-        password: "",
-        confirmPassword: "",
-        role: data.role || "employee",
-      });
+      const data = await userRepository.getById(userId);
+      if (data) {
+        setUser(data);
+        setFormData({
+          username: data.username || "",
+          email: data.email || "",
+          password: "",
+          confirmPassword: "",
+          role: data.role || "employee",
+        });
+      } else {
+        setError('Usuario no encontrado');
+      }
     } catch (error: any) {
       const errorMsg = error.response?.status === 404 
         ? 'Usuario no encontrado' 
@@ -90,11 +96,11 @@ export default function UserDetail() {
         updateData.password = formData.password;
       }
 
-      await usersApi.update(user.id, updateData);
+      await userRepository.update(user.id, updateData);
       setIsEditing(false);
       loadUser(user.id);
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Error al actualizar el usuario');
+      setError(error instanceof Error ? error.message : 'Error al actualizar el usuario');
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +112,7 @@ export default function UserDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      await usersApi.delete(user.id);
+      await userRepository.delete(user.id);
       navigate("/admin/users");
     } catch (error: any) {
       setError(error.response?.data?.detail || 'Error al eliminar el usuario');

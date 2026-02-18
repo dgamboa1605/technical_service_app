@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate} from "react-router";
+import { Link, useNavigate } from "react-router";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import { useAuth } from "../../context/AuthContext";
-import { login as loginAPI, getCurrentUser } from "../../services/authService";
-import type { LoginCredentials } from "../../services/authService";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -22,48 +20,10 @@ export default function SignInForm() {
     setError("");
 
     try {
-      console.log("🔐 Iniciando proceso de login...");
-      const credentials: LoginCredentials = { username, password };
-      console.log("📝 Credenciales:", credentials);
-      
-      // Llamar al API de login
-      const authResponse = await loginAPI(credentials);
-      console.log("✅ Respuesta de login:", authResponse);
-      
-      if (!authResponse.access_token) {
-        throw new Error("No se recibió el token de acceso");
-      }
-      
-      // Guardar el token primero
-      localStorage.setItem('access_token', authResponse.access_token);
-      console.log("💾 Token guardado en localStorage");
-      
-      // Esperar un poco para asegurar que el token esté guardado
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Obtener información del usuario
-      console.log("👤 Obteniendo datos del usuario...");
-      const userData = await getCurrentUser();
-      console.log("✅ Datos del usuario obtenidos:", userData);
-      
-      if (!userData) {
-        throw new Error("No se pudieron obtener los datos del usuario");
-      }
-      
-      // Actualizar el contexto de autenticación
-      console.log("🔄 Actualizando contexto...");
-      login(userData, authResponse.access_token);
-      
-      // Esperar que el contexto se actualice y luego navegar
-      console.log("🚀 Login exitoso, redirigiendo al dashboard...");
-      setTimeout(() => {
-        navigate("/admin");
-      }, 200); // Dar tiempo al contexto para actualizarse
+      await login(username, password);
+      navigate("/admin");
     } catch (err) {
-      console.error("❌ Login error:", err);
       setError(err instanceof Error ? err.message : "Invalid username or password");
-      // Limpiar el localStorage en caso de error
-      localStorage.removeItem('access_token');
     } finally {
       setIsLoading(false);
     }

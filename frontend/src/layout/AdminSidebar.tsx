@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useLocation } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { useAuthorization } from "../presentation/hooks/useAuthorization";
 
 // Icons for admin sidebar
 const GridIcon = () => (
@@ -54,8 +55,9 @@ type NavItem = {
 };
 
 const AdminSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleSidebar } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const { user } = useAuth();
+  const { isAdmin } = useAuthorization();
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
@@ -63,48 +65,63 @@ const AdminSidebar: React.FC = () => {
     item: string;
   } | null>(null);
 
-  const navItems: NavItem[] = [
-    {
-      icon: <GridIcon />,
-      name: "Dashboard",
-      path: "/admin",
-    },
-    {
-      icon: <ClipboardIcon />,
-      name: "Órdenes de Trabajo",
-      subItems: [
-        { name: "Nueva Orden", path: "/admin/orders/new" },
-        { name: "Todas las Órdenes", path: "/admin/orders" },
-        { name: "Pendientes", path: "/admin/orders?status=recibido,asignado,por_confirmar" },
-        { name: "En Progreso", path: "/admin/orders?status=confirmado,en_reparacion" },
-        { name: "Completadas", path: "/admin/orders?status=completado,entregado" },
-      ],
-    },
-    {
-      icon: <UsersIcon />,
-      name: "Clientes",
-      subItems: [
-        { name: "Nuevo Cliente", path: "/admin/clients/new" },
-        { name: "Todos los Clientes", path: "/admin/clients" },
-      ],
-    },
-    {
-      icon: <BoxIcon />,
-      name: "Inventario",
-      subItems: [
-        { name: "Nuevo Producto", path: "/admin/products/new" },
-        { name: "Todos los Productos", path: "/admin/products" },
-      ],
-    },
-    {
-      icon: <UserIcon />,
-      name: "Usuarios",
-      subItems: [
-        { name: "Nuevo Usuario", path: "/admin/users/new" },
-        { name: "Todos los Usuarios", path: "/admin/users" },
-      ],
-    },
-  ];
+  const navItems: NavItem[] = useMemo(() => {
+    const items: NavItem[] = [
+      {
+        icon: <GridIcon />,
+        name: "Dashboard",
+        path: "/admin",
+      },
+      {
+        icon: <UserIcon />,
+        name: "Mi Perfil",
+        path: "/admin/profile",
+      },
+      {
+        icon: <ClipboardIcon />,
+        name: "Órdenes de Trabajo",
+        subItems: [
+          ...(isAdmin ? [{ name: "Nueva Orden", path: "/admin/orders/new" }] : []),
+          { name: "Todas las Órdenes", path: "/admin/orders" },
+          { name: "Pendientes", path: "/admin/orders?status=recibido,asignado,por_confirmar" },
+          { name: "En Progreso", path: "/admin/orders?status=confirmado,en_reparacion" },
+          { name: "Completadas", path: "/admin/orders?status=completado,entregado" },
+        ],
+      },
+    ];
+
+    // Solo agregar estas secciones si es admin
+    if (isAdmin) {
+      items.push(
+        {
+          icon: <UsersIcon />,
+          name: "Clientes",
+          subItems: [
+            { name: "Nuevo Cliente", path: "/admin/clients/new" },
+            { name: "Todos los Clientes", path: "/admin/clients" },
+          ],
+        },
+        {
+          icon: <BoxIcon />,
+          name: "Inventario",
+          subItems: [
+            { name: "Nuevo Producto", path: "/admin/products/new" },
+            { name: "Todos los Productos", path: "/admin/products" },
+          ],
+        },
+        {
+          icon: <UserIcon />,
+          name: "Usuarios",
+          subItems: [
+            { name: "Nuevo Usuario", path: "/admin/users/new" },
+            { name: "Todos los Usuarios", path: "/admin/users" },
+          ],
+        }
+      );
+    }
+
+    return items;
+  }, [isAdmin]);
 
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -149,51 +166,64 @@ const AdminSidebar: React.FC = () => {
 
   return (
     <>
-      {/* Mobile Overlay */}
-      {/* Overlay eliminado para permitir interacción con el sidebar en móvil */}
-
       {/* Sidebar */}
       <div
         ref={sidebarRef}
         className={`
-          fixed left-0 top-0 mt-16 lg:mt-0 z-30 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out print:hidden
+          fixed left-0 top-0 mt-16 lg:mt-0 z-50 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out print:hidden
           ${shouldShowSidebar ? 'w-64' : 'w-16'}
           ${isMobile ? (isMobileOpen ? 'translate-x-0' : '-translate-x-full') : ''}
+          ${isMobile ? 'shadow-2xl' : 'shadow-sm'}
         `}
-        onMouseEnter={() => !isExpanded && setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => !isMobile && !isExpanded && setIsHovered(true)}
+        onMouseLeave={() => !isMobile && setIsHovered(false)}
+        role="navigation"
+        aria-label="Navegación principal"
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-center px-4 py-4 cursor-pointer" onClick={toggleSidebar} title="Mostrar/Ocultar menú">
+          <div className="flex items-center justify-between px-4 py-4">
             {shouldShowSidebar ? (
               <>
-                <img
-                  className="h-10 w-auto object-contain p-0 m-0 dark:hidden"
-                  src="/images/logo/techvel-logo.png"
-                  alt="Techvel Logo"
-                  style={{ background: 'none', boxShadow: 'none' }}
-                />
-                <img
-                  className="hidden h-10 w-auto object-contain p-0 m-0 dark:block"
-                  src="/images/logo/techvel-logo-dark.png"
-                  alt="Techvel Logo"
-                  style={{ background: 'none', boxShadow: 'none' }}
-                />
+                <button
+                  onClick={isMobile ? toggleMobileSidebar : toggleSidebar}
+                  className="flex items-center gap-2 flex-1 hover:opacity-80 transition-opacity cursor-pointer"
+                  aria-label={isMobile ? "Cerrar menú" : "Contraer menú"}
+                  title={isMobile ? "Cerrar menú" : "Contraer menú"}
+                >
+                  <img
+                    className="h-8 w-auto object-contain dark:hidden"
+                    src="/images/logo/techvel-logo.png"
+                    alt="Techvel Logo"
+                  />
+                  <img
+                    className="hidden h-8 w-auto object-contain dark:block"
+                    src="/images/logo/techvel-logo-dark.png"
+                    alt="Techvel Logo"
+                  />
+                </button>
               </>
             ) : (
-              <img
-                className="h-10 w-10 object-contain p-0 m-0"
-                src="/images/logo/techvel-icon.png"
-                alt="Techvel Icon"
-                style={{ background: 'none', boxShadow: 'none' }}
-              />
+              <div className="flex items-center justify-center w-full">
+                <button
+                  onClick={toggleSidebar}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Expandir menú"
+                  title="Expandir menú"
+                >
+                  <img
+                    className="h-8 w-8 object-contain"
+                    src="/images/logo/techvel-icon.png"
+                    alt="Techvel Icon"
+                  />
+                </button>
+              </div>
             )}
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto pt-0 pb-4">
-            <nav className="px-3">
+          <div className="flex-1 overflow-y-auto pt-2 pb-4 custom-scrollbar">
+            <nav className="px-2 sm:px-3">
               {/* Main Navigation */}
               <div className="space-y-1">
                 {navItems.map((item) => (
@@ -202,16 +232,17 @@ const AdminSidebar: React.FC = () => {
                       // Simple link without submenu
                       <Link
                         to={item.path}
+                        onClick={() => isMobile && toggleMobileSidebar()}
                         className={`
-                          flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                          flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                           ${isActive(item.path)
                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                             : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
                           }
                         `}
                       >
-                        <span className="flex-shrink-0">{item.icon}</span>
-                        {shouldShowSidebar && <span>{item.name}</span>}
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center">{item.icon}</span>
+                        {shouldShowSidebar && <span className="truncate">{item.name}</span>}
                       </Link>
                     ) : (
                       // Item with submenu
@@ -243,12 +274,15 @@ const AdminSidebar: React.FC = () => {
 
                         {/* Submenu */}
                         {shouldShowSidebar && isSubmenuOpen("main", item.name) && item.subItems && (
-                          <div className="ml-6 mt-1 space-y-1">
+                          <div className="ml-4 sm:ml-6 mt-1 space-y-1">
                             {item.subItems.map((subItem) => (
                               <Link
                                 key={subItem.name}
                                 to={subItem.path}
-                                onClick={subItem.action}
+                                onClick={() => {
+                                  subItem.action?.();
+                                  if (isMobile) toggleMobileSidebar();
+                                }}
                                 className={`
                                   block px-3 py-2 text-sm rounded-lg transition-colors
                                   ${isActive(subItem.path)
@@ -261,7 +295,7 @@ const AdminSidebar: React.FC = () => {
                                   {subItem.name.includes('Nueva') || subItem.name.includes('Nuevo') ? (
                                     <PlusIcon />
                                   ) : null}
-                                  {subItem.name}
+                                  <span className="truncate">{subItem.name}</span>
                                 </div>
                               </Link>
                             ))}
