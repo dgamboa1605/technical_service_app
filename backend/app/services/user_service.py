@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
@@ -42,19 +44,26 @@ def get_technicians(db: Session, skip: int = 0, limit: int = 100):
     )
 
 
-def update_user(db: Session, user_id: int, username: str = None, email: str = None, password: str = None, role: RoleEnum = None):
+def update_user(
+    db: Session,
+    user_id: int,
+    username: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    role: Optional[RoleEnum] = None,
+) -> Optional[User]:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         return None
     
     if username is not None:
-        user.username = username
+        setattr(user, "username", username)
     if email is not None:
-        user.email = email
+        setattr(user, "email", email)
     if password is not None:
-        user.hashed_password = hash_password(password)
+        setattr(user, "hashed_password", hash_password(password))
     if role is not None:
-        user.role = role
+        setattr(user, "role", role)
     
     db.commit()
     db.refresh(user)

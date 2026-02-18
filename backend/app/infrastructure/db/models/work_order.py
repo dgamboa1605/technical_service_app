@@ -1,30 +1,47 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Text, Float
-from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.domain.enums import WorkOrderStatusEnum, ServiceTypeEnum
+from typing import Optional
+
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.domain.enums import ServiceTypeEnum, WorkOrderStatusEnum
 from app.infrastructure.db.base import Base
+
+
+def _enum_values(obj):  # for Enum values_callable
+    return [e.value for e in obj]
 
 
 class WorkOrder(Base):
     __tablename__ = "work_orders"
 
-    id = Column(Integer, primary_key=True, index=True)
-    received_date = Column(DateTime, default=datetime.utcnow)
-    assigned_date = Column(DateTime, nullable=True)
-    status = Column(Enum(WorkOrderStatusEnum, values_callable=lambda obj: [e.value for e in obj]), default=WorkOrderStatusEnum.RECIBIDO)
-    service_type = Column(Enum(ServiceTypeEnum, values_callable=lambda obj: [e.value for e in obj]), default=ServiceTypeEnum.TALLER)
-    customer_instructions = Column(Text, nullable=True)
-    item_condition = Column(Text, nullable=True)
-    delivered_accessories = Column(Text, nullable=True)
-    observations = Column(Text, nullable=True)
-    technical_report = Column(Text, nullable=True)
-    labor_cost = Column(Float, nullable=True, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    received_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    assigned_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[WorkOrderStatusEnum] = mapped_column(
+        Enum(WorkOrderStatusEnum, values_callable=_enum_values),
+        default=WorkOrderStatusEnum.RECIBIDO,
+    )
+    service_type: Mapped[ServiceTypeEnum] = mapped_column(
+        Enum(ServiceTypeEnum, values_callable=_enum_values),
+        default=ServiceTypeEnum.TALLER,
+    )
+    customer_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    item_condition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    delivered_accessories: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observations: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    technical_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    labor_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0)
 
-    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    technician_id = Column(
+    client_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("clients.id"), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("products.id"), nullable=False
+    )
+    technician_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )  # assuming technicians are users
+    )
 
     client = relationship("Client", back_populates="work_orders")
     product = relationship("Product", back_populates="work_orders")

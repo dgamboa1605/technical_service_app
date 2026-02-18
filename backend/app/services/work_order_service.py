@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from sqlalchemy.orm import Session, selectinload
 
@@ -130,30 +130,37 @@ def get_work_orders_with_details_for_employee(
 ) -> List[WorkOrder]:
     """
     Obtiene órdenes con detalles para un empleado.
-    Employee solo ve órdenes asignadas a él o sin técnico asignado (en estado recibido/asignado)
+    Employee solo ve órdenes asignadas a él o sin técnico asignado (en estado recibido/asignado).
+    Client data is hidden for employees (consistent with detail endpoint hide_client behavior).
     """
     from app.domain.enums import WorkOrderStatusEnum
-    
-    return (
+
+    work_orders = (
         db.query(WorkOrder)
         .options(
-            selectinload(WorkOrder.client),
             selectinload(WorkOrder.product),
             selectinload(WorkOrder.technician),
             selectinload(WorkOrder.history),
             selectinload(WorkOrder.parts),
         )
         .filter(
-            (WorkOrder.technician_id == employee_id) |
-            (
-                (WorkOrder.technician_id.is_(None)) &
-                (WorkOrder.status.in_([WorkOrderStatusEnum.RECIBIDO, WorkOrderStatusEnum.ASIGNADO]))
+            (WorkOrder.technician_id == employee_id)
+            | (
+                (WorkOrder.technician_id.is_(None))
+                & (
+                    WorkOrder.status.in_(
+                        [WorkOrderStatusEnum.RECIBIDO, WorkOrderStatusEnum.ASIGNADO]
+                    )
+                )
             )
         )
         .offset(skip)
         .limit(limit)
         .all()
     )
+    for wo in work_orders:
+        wo.client = None
+    return work_orders
 
 
 def update_work_order_status(
@@ -164,7 +171,7 @@ def update_work_order_status(
     note: Optional[str] = None,
 ) -> WorkOrder:
     work_order = get_work_order_or_raise(db, work_order_id)
-    current_status = work_order.status
+    current_status = cast(WorkOrderStatusEnum, work_order.status)
     allowed = ALLOWED_TRANSITIONS.get(current_status, [])
     if new_status not in allowed:
         raise ValueError(
